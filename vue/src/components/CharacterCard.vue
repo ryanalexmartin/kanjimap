@@ -43,5 +43,4 @@ div {
 div.learned {
   background-color: lightgreen;
 }
-
 </style>
