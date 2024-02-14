@@ -7,9 +7,8 @@
     <a href="https://github.com/ryanalexmartin/kanjimap">github.com/ryanalexmartin/kanjimap</a>
     <br />
     <br />
-    
     <div>
-      Click on a character to mark it as learned.  Click again to mark it as unlearned.
+      Click on a character to mark it as learned.  Click again to mark it as unlearned. I recommend something like <a href="https://github.com/gkovacs/LiuChanFirefox/tree/firefox">LiuChan</a> to help you learn the characters.  
     </div>
   </header>
   <div id="app">
@@ -35,7 +34,6 @@
 
 <script>
 import { ref, onMounted, reactive } from 'vue';
-import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 import charactersData from './data/variant-WordData.json';
 import LoginView from './components/LoginView.vue';
 import RegisterView from './components/RegisterView.vue';
@@ -58,13 +56,16 @@ export default {
       const response = await fetch(
         `http://localhost:8081/fetch-characters?username=${username}`
       );
-      const characterCards = await response.json();
-      for (const card of characterCards) {
-
-        if (card.learned) {
-          localStorage.setItem(card.character, card.learned);
-        } else {
-          localStorage.removeItem(card.character);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      } else {
+        const characterCards = await response.json();
+        for (const card of characterCards) {
+          if (card.learned) {
+            localStorage.setItem(card.character, card.learned);
+          } else {
+            localStorage.removeItem(card.character);
+          }
         }
       }
       characters.value = charactersData
@@ -111,9 +112,11 @@ export default {
           learned: learned,
         }),
       });
-
-      console.log(response);
-
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      } else {
+        console.log('Character learned status updated.');
+      }
     };
 
     onMounted(() => {
