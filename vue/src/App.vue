@@ -113,9 +113,10 @@ export default {
 .character-card {
   display: flex;
   align-items: center;
+  justify-content: center; /* Add this line to center the text horizontally */
   border: 1px solid black;
-  padding: 10px;
-  margin: 5px;
+  padding: 5px;
+  margin: 1px;
   cursor: pointer;
 }
 div.learned {
@@ -130,12 +131,12 @@ div.learned {
 /* Display a dynamic grid of character cards based on browser width */
 .big-table{
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+  gap: 5px;
   border: 1px solid #ccc;
   border-radius: 5px;
-  margin: 0 auto;
-  padding: 20px;
+  margin: 10 auto;
+  padding: 10px;
   border: 1px solid #ccc;
   border-radius: 5px;
 }
