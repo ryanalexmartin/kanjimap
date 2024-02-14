@@ -112,11 +112,9 @@ export default {
           learned: learned,
         }),
       });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      } else {
-        console.log('Character learned status updated.');
-      }
+
+      console.log(response);
+
     };
 
     onMounted(() => {
