@@ -1,34 +1,22 @@
 <template>
-  <div @click="markLearned" :class="{ learned: character.learned }">
+  <div @click="updateCharacterLearned(character, !character.learned)" :class="{ learned: character.learned }">
     {{ character.char }}
   </div>
 </template>
 
 <script>
+import { mapActions } from 'vuex';
+
 export default {
-  props: {
-    character: Object
+  methods: {
+    ...mapActions(['updateCharacterLearned']),
   },
-  setup(props, { emit }) {
-    
-    function markLearned() {
-      const newLearnedState = !props.character.learned;
-      
-      // Emit the change to the parent
-      emit('update-learned', { id: props.character.id, learned: newLearnedState });
+  props: {
+    character: Object,
+  },
 
-      // Save to local storage
-      if (newLearnedState) {
-        localStorage.setItem(props.character.char, 'true');
-      } else {
-        localStorage.removeItem(props.character.char);
-      }
-    }
-
-    return {
-      markLearned
-    };
-  }
+  setup() {
+  },
 }
 </script>
 
@@ -40,6 +28,7 @@ div {
   margin: 5px;
   cursor: pointer;
 }
+
 div.learned {
   background-color: lightgreen;
 }

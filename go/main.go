@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,6 +19,12 @@ type User struct {
 	Password string `json:"password"`
 }
 
+type CharacterCard struct {
+	ID        string         `json:"id"`
+	Character sql.NullString `json:"character"`
+	Learned   bool           `json:"learned"`
+}
+
 var db *sql.DB
 
 func main() {
@@ -28,7 +35,6 @@ func main() {
 	}
 	defer db.Close()
 
-	// Try to ping the database
 	err = db.Ping()
 	if err != nil {
 		log.Fatal("Unable to connect to MySQL server or database does not exist: ", err)
@@ -37,6 +43,8 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/register", registerHandler)
 	mux.HandleFunc("/login", loginHandler)
+	mux.HandleFunc("/fetch-characters", fetchAllCharactersHandler)
+	mux.HandleFunc("/learn-character", learnCharacter)
 
 	handler := cors.New(cors.Options{
 		AllowedOrigins: []string{"http://localhost:8080"}, // Replace with the origin of your Vue app
@@ -48,7 +56,6 @@ func main() {
 }
 
 func registerHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Received register request")
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 
@@ -67,21 +74,33 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	_, err = db.Exec("INSERT INTO users (username, password) VALUES (?, ?)", username, hashedPassword)
+	// Create a new userID via an auto-incrementing column
+	result, err := db.Exec("INSERT INTO users (username, password) VALUES (?, ?)", username, hashedPassword)
 	if err != nil {
 		http.Error(w, "Unable to register user", http.StatusInternalServerError)
 		fmt.Println("Unable to register user", err)
 		return
 	}
 
+	userID, err := result.LastInsertId()
+	if err != nil {
+		http.Error(w, "Unable to get user ID", http.StatusInternalServerError)
+		fmt.Println("Unable to get user ID", err)
+		return
+	}
+	w.Write([]byte(fmt.Sprintf("User successfully registered with ID: %d", userID)))
+	_, err = db.Exec("INSERT INTO users (username, password) VALUES (?, ?)", username, hashedPassword)
+	if err != nil {
+		http.Error(w, "Unable to register user", http.StatusInternalServerError)
+		fmt.Println("Unable to register user", err)
+		return
+	}
 	w.Write([]byte("User successfully registered"))
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Received login request")
 	username := r.FormValue("username")
 	password := r.FormValue("password")
-
 	var user User
 	row := db.QueryRow("SELECT * FROM users WHERE username = ?", username)
 	err := row.Scan(&user.ID, &user.Username, &user.Password)
@@ -94,11 +113,128 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error logging in", http.StatusInternalServerError)
 		return
 	}
-
 	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		http.Error(w, "Invalid password", http.StatusUnauthorized)
 		return
 	}
-
 	w.Write([]byte("Logged in successfully"))
+}
+
+func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
+	var userID int
+	err := db.QueryRow("SELECT id FROM users WHERE username=?", r.FormValue("username")).Scan(&userID)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		fmt.Println("Database error", err)
+		return
+	}
+	fmt.Printf("Downloading characters for user %v with id %v\n", r.FormValue("username"), userID)
+
+	rows, err := db.Query("SELECT characters.character_id, user_character_progress.learned FROM characters LEFT JOIN user_character_progress ON characters.character_id = user_character_progress.character_id AND user_character_progress.user_id = ?", userID)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		fmt.Println("Database error", err)
+		return
+	}
+	defer rows.Close()
+
+	var cards []CharacterCard
+	for rows.Next() {
+		var card CharacterCard
+		var learned sql.NullBool
+		if err := rows.Scan(&card.ID, &learned); err != nil {
+			http.Error(w, "Database error", http.StatusInternalServerError)
+			fmt.Println("Database error", err)
+			return
+		}
+		if learned.Valid {
+			fmt.Printf("Info about card %v: learned=%v\n", card.ID, learned.Bool)
+			card.Learned = learned.Bool
+		} else {
+			card.Learned = false
+		}
+		cards = append(cards, card)
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		fmt.Println("Database error", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(cards)
+}
+
+func learnCharacter(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("learnCharacter")
+	var character struct {
+		Username    string `json:"username"`
+		Character   string `json:"character"`
+		Learned     bool   `json:"learned"`
+		CharacterID string `json:"characterId"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&character)
+	if err != nil {
+		http.Error(w, "Unable to decode JSON request", http.StatusBadRequest)
+		fmt.Println("Unable to decode JSON request", err)
+		return
+	}
+
+	var userID int
+	err = db.QueryRow("SELECT id FROM users WHERE username=?", character.Username).Scan(&userID)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		fmt.Println("Database error", err)
+		return
+	}
+	fmt.Println("UserID", character.CharacterID)
+
+	var learned = character.Learned
+	err = db.QueryRow("SELECT learned FROM user_character_progress WHERE character_id=? AND user_id=?", character.CharacterID, userID).Scan(&learned)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// Insert a new row for the character
+			_, err = db.Exec("INSERT INTO user_character_progress (user_id, character_id, learned) VALUES (?, ?, ?)", userID, character.CharacterID, character.Learned)
+			if err != nil {
+				http.Error(w, "Database error", http.StatusInternalServerError)
+				fmt.Println("Database error", err)
+				return
+			}
+			fmt.Println("Inserted new row for character", character.CharacterID)
+		} else {
+			http.Error(w, "Database error", http.StatusInternalServerError)
+			fmt.Println("Database error", err)
+			return
+		}
+	}
+
+	fmt.Println("updating value of learned", character.Learned)
+
+	_, err = db.Exec("UPDATE user_character_progress SET learned=? WHERE user_id=? AND character_id=?", character.Learned, userID, character.CharacterID)
+	if err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		fmt.Println("Database error", err)
+		return
+	}
+
+	// Return the updated character card with the learned status from the database
+	row := db.QueryRow("SELECT * FROM user_character_progress WHERE user_id=? AND character_id=?", userID, character.CharacterID)
+	var card CharacterCard
+	if err := row.Scan(&card.ID, &card.Character, &card.Learned); err != nil {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		fmt.Println("Database error", err)
+		return
+	}
+	type JsonResponse struct {
+		UserID      int    `json:"userId"`
+		CharacterID string `json:"characterId"`
+		Learned     bool   `json:"learned"`
+	}
+	jsonResponse := JsonResponse{
+		UserID:      userID,
+		CharacterID: character.CharacterID,
+		Learned:     card.Learned,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(jsonResponse)
 }

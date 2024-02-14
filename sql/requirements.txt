@@ -1,0 +1,4 @@
+# needs: sudo apt install libmysqlclient-dev
+mysqlclient==2.2.4
+mysqlconnector-python==8.3.0
+mysql==0.0.3

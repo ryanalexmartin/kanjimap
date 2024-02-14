@@ -15,3 +15,11 @@ ENV MYSQL_PASSWORD=password
 
 # Expose port 3306
 EXPOSE 3306
+
+COPY update_characters_table.py .
+RUN apt-get update && apt-get install -y python3 python3-pip
+COPY requirements.txt . 
+RUN pip3 install -r requirements.txt
+
+# Run the Python script
+CMD ["python3", "update_characters_table.py"]

@@ -6,7 +6,7 @@
       <h1>Learned {{ learnedCount }} out of {{ totalCharacters }}</h1>
       <RecycleScroller class="scroller" :items="characters" :item-size="50" :gridItems="20" key-field="id"
         v-slot="{ item }">
-        <CharacterCard :character="item" @update-learned="updateCharacterLearnedState" />
+        <CharacterCard :character="item" />
       </RecycleScroller>
     </div>
     <div v-else>
@@ -24,7 +24,7 @@ import CharacterCard from './components/CharacterCard.vue';
 import charactersData from './data/variant-WordData.json';
 import LoginView from './components/LoginView.vue';
 import RegisterView from './components/RegisterView.vue';
-
+import store from './store'; 
 
 export default {
   components: {
@@ -33,6 +33,8 @@ export default {
     LoginView,
     RegisterView
   },
+  // setup() {
+  // setup(props, { emit }) {
   setup() {
     const state = reactive({
       isRegistering: false,
@@ -42,10 +44,10 @@ export default {
     const handleLogin = (username) => {
       state.isLoggedIn = true;
       state.username = username;
-    };
-    const logout = () => {
-      state.isLoggedIn = false;
-      state.username = '';
+     };
+    const logout = ({ commit }) => {
+      commit('setLoggedIn', false);
+      commit('setUsername', '');
     };
     const showRegisterView = () => {
       state.isRegistering = true;
@@ -56,7 +58,6 @@ export default {
 
     const characters = ref([]);
     const learnedCount = ref(0);
-    // const refreshKey = ref(0);
     const totalCharacters = charactersData.filter(c => c.serial.includes('A')).length;
 
     onMounted(() => {
@@ -72,40 +73,42 @@ export default {
       learnedCount.value = characters.value.filter(c => c.learned).length;
     });
 
-    // function forceRefresh() {
-    //   refreshKey.value++;
-    // }
+    // const updateLearned = async (character, learned) => {
+    //   console.log('Character:', character.char, 'Learned:', learned);
+    //   // Send an update to the server
+    //   try {
+    //     const response = await fetch('http://localhost:8081/learn-character', {
+    //       method: 'POST',
+    //       headers: {
+    //         'Content-Type': 'application/json',
+    //       },
+    //       body: JSON.stringify({
+    //         username: state.username,
+    //         character: character.char,
+    //         learned: learned,
+    //         characterId: character.id,
+    //       }),
+    //     });
 
-    function updateCharacterLearnedState(character, learned) {
-      // Update the state in the client
-      character.learned = learned;
-      this.learnedCount = this.characters.filter(c => c.learned).length;
+    //     if (!response.ok) {
+    //       throw new Error(`HTTP error! status: ${response.status}`);
+    //     }
 
-      // Send an update to the server
-      fetch('http://localhost:8081/learn', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: this.username,
-          character: character.character,
-          learned: learned,
-        }),
-      })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          return response.text();
-        })
-        .then(message => {
-          console.log(message);
-        })
-        .catch(error => {
-          console.log('There was a problem with the learn request.', error);
-        });
-    }
+    //     const data = await response.json();
+    //     character.learned = data.learned;
+    //     emit('update-learned', { id: character.id, learned:learned });
+    //     console.log('CharacterId:', character.id, 'Learned:', character.learned);
+    //     learnedCount.value = characters.value.filter(c => c.learned).length;
+    //   } catch (error) {
+    //     console.log('There was a problem with the learn request.', error);
+    //   }
+    //   if (learned) {
+    //     localStorage.setItem(character.char, 'true');
+    //   } else {
+    //     localStorage.removeItem(character.char);
+    //   }
+    //   emit('update-learned', { id: character.id, learned: learned });
+    // };
 
     return {
       state,
@@ -114,9 +117,10 @@ export default {
       characters,
       learnedCount,
       totalCharacters,
-      updateCharacterLearnedState,
+      // updateLearned,
       handleLogin,
-      logout
+      logout,
+      store
     };
   }
 }
@@ -124,7 +128,8 @@ export default {
 
 <style>
 .vue-recycle-scroller.direction-vertical.scroller {
-  height: 500px;
+  height: 80vh;
+  width: 100%;
   /* adjust this value based on your design */
   overflow-y: auto;
 }
