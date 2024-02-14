@@ -1,4 +1,9 @@
 <template>
+  <header>
+    <h1>KanjiMap</h1>
+    <h2>by Ryan Alex Martin</h2>
+    <a href="ryanalexmartin.com">ryanalexmartin.com</a>
+  </header>
   <div id="app">
     <div v-if="state.isLoggedIn">
       <p>Welcome, {{ state.username }}!</p>

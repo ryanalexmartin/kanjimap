@@ -1,15 +1,21 @@
 <template>
-    <div class="register-view">
-        <h1>Register</h1>
-        <form @submit.prevent="register">
-            <label for="username">Username:</label>
-            <input type="text" id="username" v-model="username" required>
+    <div class="center">
+        <div class="register-view">
+            <h1>Register</h1>
+            <form @submit.prevent="register">
+                <label for="username">Username</label>
+                <input type="text" id="username" v-model="username" required>
 
-            <label for="password">Password:</label>
-            <input type="password" id="password" v-model="password" required>
+                <label for="password">Password</label>
+                <input type="password" id="password" v-model="password" required>
 
-            <button type="submit">Register</button>
-        </form>
+                <label for="email">Email (optional)</label>
+                <input type="email" id="email" v-model="email">
+
+                <button type="submit">Register</button>
+                <button type="button" @click="$emit('registered')">Cancel</button>
+            </form>
+        </div>
     </div>
 </template>
 
@@ -18,7 +24,8 @@ export default {
     data() {
         return {
             username: '',
-            password: ''
+            password: '',
+            email: ''   
         }
     },
     methods: {
@@ -82,11 +89,28 @@ export default {
 
 <style scoped>
 .register-view {
-    max-width: 300px;
-    margin: 0 auto;
+    align-self: center;
+    margin: 20 auto;
     padding: 20px;
     border: 1px solid #ccc;
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    width: 300px;
+}
+
+input {
+    display: block;
+    margin: 10px;
+    width: 90%;
+    padding: 10px;
+    font-size: 16px;
+}
+
+.center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* height: 100vh; */
+    padding-bottom: 20px;
 }
 </style>

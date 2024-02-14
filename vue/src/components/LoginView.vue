@@ -1,10 +1,12 @@
 <template>
-    <div>
-        <h2>Login</h2>
-        <input v-model="username" type="text" placeholder="Username">
-        <input v-model="password" type="password" placeholder="Password">
-        <button @click="login">Login</button>
-        <button @click="$emit('register')">Register</button>
+    <div class="center">
+        <div class="login-view">
+            <h2>Login</h2>
+            <input v-model="username" type="text" placeholder="Username">
+            <input v-model="password" type="password" placeholder="Password">
+            <button @click="login">Login</button>
+            <button @click="$emit('register')">Register</button>
+        </div>
     </div>
 </template>
 
@@ -48,13 +50,23 @@ export default {
 </script>
 
 <style scoped>
+.login-view {
+    align-self: center;
+    margin: 20 auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    width: 300px;
+}
+
 h2 {
     margin-bottom: 20px;
 }
 input {
     display: block;
     margin-bottom: 10px;
-    width: 100%;
+    width: 90%;
     padding: 10px;
     font-size: 16px;
 }
@@ -69,5 +81,12 @@ button {
 }
 button:hover {
     background-color: #45a049;
+}
+.center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* height: 100vh; */
+    padding-bottom: 20px;
 }
 </style>
