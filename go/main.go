@@ -196,9 +196,6 @@ func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(characterCards)
-
-	fmt.Println("Character cards sent to client:")
-	fmt.Println(characterCards)
 }
 
 func learnCharacter(w http.ResponseWriter, r *http.Request) {
