@@ -1,3 +1,4 @@
+<!-- TODO write tests for this file -->
 <template>
     <div class="center">
         <div class="login-view">

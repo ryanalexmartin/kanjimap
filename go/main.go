@@ -128,8 +128,6 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Logged in successfully"))
 }
 
-// Note:  Currently this is returning a HUGE amount of data.  We need to limit the number of characters returned.
-// We could limit the number of entries returned by only returning the characters that have a non-null learned value.
 func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	var userID int
@@ -150,7 +148,6 @@ func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 
 	var characterCards []CharacterCard
-
 	for rows.Next() {
 		var card CharacterCard
 		var learned sql.NullBool
@@ -160,13 +157,9 @@ func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Println("Database error", err)
 			return
 		}
-
-		// Skip the card if the "learned" value is null
 		if !learned.Valid {
 			continue
 		}
-
-		// Get the character from the character ID
 		var character sql.NullString
 		row, err := db.Query("SELECT chinese_character FROM characters WHERE character_id=?", card.CharacterID)
 		if err != nil {
@@ -183,7 +176,6 @@ func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-
 		card.Username = username
 		if character.Valid {
 			card.Character = character.String
