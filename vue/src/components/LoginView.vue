@@ -9,7 +9,6 @@
 </template>
 
 <script>
-import store from '@/store';
 
 export default {
     data() {
@@ -39,9 +38,6 @@ export default {
                 .then(message => {
                     console.log(message);
                     this.$emit('login', this.username);
-                    store.commit('setUsername', this.username);
-                    store.commit('setLoggedIn', true);
-                    store.dispatch('loadCharacters', this.username)
                 })
                 .catch(error => {
                     console.log('There was a problem with the login request.', error);

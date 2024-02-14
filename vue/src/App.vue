@@ -5,11 +5,12 @@
       <button @click="logout">Logout</button>
       <h1>Learned {{ learnedCount }} out of {{ totalCharacters }}</h1>
       <div class="big-table">
-      <div v-for="item in characters" :key="item.id">
-        <div class="character-card" :class="{ learned: item.learned }" @click="updateCharacterLearned(item, !item.learned)">
-          {{ item.char }}
+        <div v-for="item in characters" :key="item.id">
+          <div class="character-card" :class="{ learned: item.learned }"
+            @click="updateCharacterLearned(item, !item.learned)">
+            {{ item.char }}
+          </div>
         </div>
-      </div>
       </div>
     </div>
     <div v-else>
@@ -25,7 +26,6 @@ import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 import charactersData from './data/variant-WordData.json';
 import LoginView from './components/LoginView.vue';
 import RegisterView from './components/RegisterView.vue';
-import store from './store'; 
 
 export default {
   components: {
@@ -38,13 +38,36 @@ export default {
       isLoggedIn: false,
       username: ''
     });
-    const handleLogin = (username) => {
+
+    const handleLogin = async (username) => { // Add the missing 'commit' parameter
       state.isLoggedIn = true;
       state.username = username;
-     };
-    const logout = ({ commit }) => {
-      commit('setLoggedIn', false);
-      commit('setUsername', '');
+      const response = await fetch(
+        `http://localhost:8081/fetch-characters?username=${username}`
+      );
+      const characterCards = await response.json();
+      for (const card of characterCards) {
+
+        if (card.learned) {
+          localStorage.setItem(card.character, card.learned);
+        } else {
+          localStorage.removeItem(card.character);
+        }
+      }
+      characters.value = charactersData
+        .filter(char => char.serial.includes('A'))
+        .map((char) => {
+          return {
+            id: char.serial,
+            char: char.word,
+            learned: localStorage.getItem(char.word) === 'true',
+          };
+        });
+      learnedCount.value = characters.value.filter(c => c.learned).length;
+    };
+    const logout = () => {
+      state.isLoggedIn = false;
+      state.username = '';
     };
     const showRegisterView = () => {
       state.isRegistering = true;
@@ -103,7 +126,6 @@ export default {
       updateCharacterLearned,
       handleLogin,
       logout,
-      store
     };
   }
 }
@@ -113,12 +135,15 @@ export default {
 .character-card {
   display: flex;
   align-items: center;
-  justify-content: center; /* Add this line to center the text horizontally */
+  justify-content: center;
+  /* Add this line to center the text horizontally */
   border: 1px solid black;
   padding: 5px;
   margin: 1px;
   cursor: pointer;
+  background-color: #f0f0f0;
 }
+
 div.learned {
   background-color: lightgreen;
 }
@@ -129,7 +154,7 @@ div.learned {
 }  */
 
 /* Display a dynamic grid of character cards based on browser width */
-.big-table{
+.big-table {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
   gap: 5px;
@@ -141,4 +166,18 @@ div.learned {
   border-radius: 5px;
 }
 
+/* Make everything look nice */
+#app {
+  font-family: Avenir, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-align: center;
+  color: #2c3e50;
+  margin-top: 60px;
+  background-color: lightgray;
+}
+
+html {
+  background-color: gray;
+}
 </style>
