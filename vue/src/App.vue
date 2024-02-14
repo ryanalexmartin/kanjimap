@@ -33,8 +33,6 @@ export default {
     LoginView,
     RegisterView
   },
-  // setup() {
-  // setup(props, { emit }) {
   setup() {
     const state = reactive({
       isRegistering: false,
@@ -56,7 +54,7 @@ export default {
       state.isRegistering = false;
     };
 
-    const characters = ref([]);
+    const characters = ref(0);
     const learnedCount = ref(0);
     const totalCharacters = charactersData.filter(c => c.serial.includes('A')).length;
 
@@ -67,48 +65,11 @@ export default {
           return {
             id: char.serial,
             char: char.word,
-            learned: !!localStorage.getItem(char.word)
+            learned: localStorage.getItem(char.word) === 'true',
           };
         });
       learnedCount.value = characters.value.filter(c => c.learned).length;
     });
-
-    // const updateLearned = async (character, learned) => {
-    //   console.log('Character:', character.char, 'Learned:', learned);
-    //   // Send an update to the server
-    //   try {
-    //     const response = await fetch('http://localhost:8081/learn-character', {
-    //       method: 'POST',
-    //       headers: {
-    //         'Content-Type': 'application/json',
-    //       },
-    //       body: JSON.stringify({
-    //         username: state.username,
-    //         character: character.char,
-    //         learned: learned,
-    //         characterId: character.id,
-    //       }),
-    //     });
-
-    //     if (!response.ok) {
-    //       throw new Error(`HTTP error! status: ${response.status}`);
-    //     }
-
-    //     const data = await response.json();
-    //     character.learned = data.learned;
-    //     emit('update-learned', { id: character.id, learned:learned });
-    //     console.log('CharacterId:', character.id, 'Learned:', character.learned);
-    //     learnedCount.value = characters.value.filter(c => c.learned).length;
-    //   } catch (error) {
-    //     console.log('There was a problem with the learn request.', error);
-    //   }
-    //   if (learned) {
-    //     localStorage.setItem(character.char, 'true');
-    //   } else {
-    //     localStorage.removeItem(character.char);
-    //   }
-    //   emit('update-learned', { id: character.id, learned: learned });
-    // };
 
     return {
       state,

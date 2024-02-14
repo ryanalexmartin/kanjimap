@@ -19,10 +19,18 @@ type User struct {
 	Password string `json:"password"`
 }
 
+// This is used to get the character from its ID
+type Character struct {
+	ID        string `json:"id"`
+	Character string `json:"character"`
+}
+
+// This is used to track the learned status of characters for a user
 type CharacterCard struct {
-	ID        string         `json:"id"`
-	Character sql.NullString `json:"character"`
-	Learned   bool           `json:"learned"`
+	Username    string `json:"username"`
+	Character   string `json:"character"`
+	Learned     bool   `json:"learned"`
+	CharacterID string `json:"characterId"` // "CharacterID" emphasizes that it's a string, not an int
 }
 
 var db *sql.DB
@@ -120,9 +128,12 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Logged in successfully"))
 }
 
+// Note:  Currently this is returning a HUGE amount of data.  We need to limit the number of characters returned.
+// We could limit the number of entries returned by only returning the characters that have a non-null learned value.
 func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
+	username := r.FormValue("username")
 	var userID int
-	err := db.QueryRow("SELECT id FROM users WHERE username=?", r.FormValue("username")).Scan(&userID)
+	err := db.QueryRow("SELECT id FROM users WHERE username=?", username).Scan(&userID)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		fmt.Println("Database error", err)
@@ -138,41 +149,62 @@ func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var cards []CharacterCard
+	var characterCards []CharacterCard
+
 	for rows.Next() {
 		var card CharacterCard
 		var learned sql.NullBool
-		if err := rows.Scan(&card.ID, &learned); err != nil {
+		err := rows.Scan(&card.CharacterID, &learned)
+		if err != nil {
 			http.Error(w, "Database error", http.StatusInternalServerError)
 			fmt.Println("Database error", err)
 			return
 		}
-		if learned.Valid {
-			fmt.Printf("Info about card %v: learned=%v\n", card.ID, learned.Bool)
-			card.Learned = learned.Bool
-		} else {
-			card.Learned = false
-		}
-		cards = append(cards, card)
-	}
-	if err := rows.Err(); err != nil {
-		http.Error(w, "Database error", http.StatusInternalServerError)
-		fmt.Println("Database error", err)
-		return
-	}
 
+		// Skip the card if the "learned" value is null
+		if !learned.Valid {
+			continue
+		}
+
+		// Get the character from the character ID
+		var character sql.NullString
+		row, err := db.Query("SELECT chinese_character FROM characters WHERE character_id=?", card.CharacterID)
+		if err != nil {
+			http.Error(w, "Database error", http.StatusInternalServerError)
+			fmt.Println("Database error", err)
+			return
+		}
+		defer row.Close()
+		for row.Next() {
+			err := row.Scan(&character)
+			if err != nil {
+				http.Error(w, "Database error", http.StatusInternalServerError)
+				fmt.Println("Database error", err)
+				return
+			}
+		}
+
+		card.Username = username
+		if character.Valid {
+			card.Character = character.String
+		} else {
+			card.Character = "Character not found"
+		}
+
+		card.Learned = learned.Bool
+		characterCards = append(characterCards, card)
+	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(cards)
+	json.NewEncoder(w).Encode(characterCards)
+
+	fmt.Println("Character cards sent to client:")
+	fmt.Println(characterCards)
 }
 
 func learnCharacter(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("learnCharacter")
-	var character struct {
-		Username    string `json:"username"`
-		Character   string `json:"character"`
-		Learned     bool   `json:"learned"`
-		CharacterID string `json:"characterId"`
-	}
+
+	var character CharacterCard
 	err := json.NewDecoder(r.Body).Decode(&character)
 	if err != nil {
 		http.Error(w, "Unable to decode JSON request", http.StatusBadRequest)
@@ -220,7 +252,7 @@ func learnCharacter(w http.ResponseWriter, r *http.Request) {
 	// Return the updated character card with the learned status from the database
 	row := db.QueryRow("SELECT * FROM user_character_progress WHERE user_id=? AND character_id=?", userID, character.CharacterID)
 	var card CharacterCard
-	if err := row.Scan(&card.ID, &card.Character, &card.Learned); err != nil {
+	if err := row.Scan(&card.CharacterID, &card.Username, &card.Learned); err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		fmt.Println("Database error", err)
 		return

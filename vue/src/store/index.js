@@ -19,19 +19,22 @@ export default createStore({
   },
   actions: {
     async loadCharacters({ commit }, username) {
-        console.log("loadCharacters", username);
+        console.log("fetch-characters?username=", username);
         const response = await fetch(
             `http://localhost:8081/fetch-characters?username=${username}`
         );
-        const characters = await response.json();
-        for (const character of characters) {
-            const { id, learned } = character;
+        const characterCards = await response.json();
+        for (const card of characterCards) {
             commit("setCharacterLearned", {
-                id: id,
-                learned: learned,
+                character: card.character,
+                characterId: card.characterId,
+                learned: card.learned,
             });
-            if (learned) {
-                console.log("learned", id);
+
+            if (card.learned) {
+                localStorage.setItem(card.character, card.learned);
+            } else {
+                localStorage.removeItem(card.character);
             }
         }
     },
@@ -44,8 +47,8 @@ export default createStore({
             },
             body: JSON.stringify({
                 username: state.username,
-                character: state.characters[id].char,
-                learned: learned,
+                character: id,
+                learned: !learned,
                 characterId: id,
             }),
         });
@@ -53,48 +56,10 @@ export default createStore({
         // Parse the JSON response and commit the mutation
         let character = await response.json();
         commit("setCharacterLearned", {
-            id: id,
+            characterId: id,
             learned: character.learned,
         });
-
     }
     },
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Note to self!! The database and the local state are not in sync.  Need to fix this when I get home.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
