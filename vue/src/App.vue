@@ -2,7 +2,15 @@
   <header>
     <h1>KanjiMap</h1>
     <h2>by Ryan Alex Martin</h2>
-    <a href="ryanalexmartin.com">ryanalexmartin.com</a>
+    <a href="https://ryanalexmartin.com">ryanalexmartin.com</a>
+    <br />
+    <a href="https://github.com/ryanalexmartin/kanjimap">github.com/ryanalexmartin/kanjimap</a>
+    <br />
+    <br />
+    
+    <div>
+      Click on a character to mark it as learned.  Click again to mark it as unlearned.
+    </div>
   </header>
   <div id="app">
     <div v-if="state.isLoggedIn">
