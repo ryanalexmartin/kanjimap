@@ -1,16 +1,11 @@
 <template>
-  <div @click="updateCharacterLearned(character, !character.learned)" :class="{ learned: character.learned }">
+  <div :class="{ learned: character.learned }">
     {{ character.char }}
   </div>
 </template>
 
 <script>
-import { mapActions } from 'vuex';
-
 export default {
-  methods: {
-    ...mapActions(['updateCharacterLearned']),
-  },
   props: {
     character: Object,
   },

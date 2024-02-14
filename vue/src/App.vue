@@ -6,7 +6,7 @@
       <h1>Learned {{ learnedCount }} out of {{ totalCharacters }}</h1>
       <RecycleScroller class="scroller" :items="characters" :item-size="50" :gridItems="20" key-field="id"
         v-slot="{ item }">
-        <CharacterCard :character="item" />
+        <CharacterCard :character="item" @click="updateCharacterLearned(item, !item.learned)" />
       </RecycleScroller>
     </div>
     <div v-else>
@@ -54,9 +54,32 @@ export default {
       state.isRegistering = false;
     };
 
+    // const characters = ref(0);
     const characters = ref(0);
     const learnedCount = ref(0);
     const totalCharacters = charactersData.filter(c => c.serial.includes('A')).length;
+
+    const updateCharacterLearned = (character, learned) => {
+      character.learned = learned;
+      localStorage.setItem(character.char, learned);
+      learnedCount.value = characters.value.filter(c => c.learned).length;
+      // Send a request to the server to update the learned status (JSON)
+      let response = fetch('http://localhost:8081/learn-character', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: state.username,
+          chinese_character: character.char,
+          characterId: character.id,
+          learned: learned,
+        }),
+      });
+
+      console.log(response);
+
+    };
 
     onMounted(() => {
       characters.value = charactersData
@@ -78,7 +101,7 @@ export default {
       characters,
       learnedCount,
       totalCharacters,
-      // updateLearned,
+      updateCharacterLearned,
       handleLogin,
       logout,
       store

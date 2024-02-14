@@ -17,8 +17,9 @@ export default createStore({
         state.loggedIn = loggedIn;
     }
   },
+
   actions: {
-    async loadCharacters({ commit }, username) {
+    async loadCharacters({ commit, dispatch }, username) {
         console.log("fetch-characters?username=", username);
         const response = await fetch(
             `http://localhost:8081/fetch-characters?username=${username}`
@@ -36,29 +37,34 @@ export default createStore({
             } else {
                 localStorage.removeItem(card.character);
             }
+
+            dispatch('updateCharacterLearned', {
+                id: card.characterId,
+                learned: card.learned
+            });
         }
     },
     async updateCharacterLearned({ commit, state }, { id, learned }) {
-        console.log("Character has learned value of: ", learned)
-        let response = await fetch(`http://localhost:8081/learn-character`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                username: state.username,
-                character: id,
-                learned: !learned,
-                characterId: id,
-            }),
-        });
+      console.log("Character has learned value of: ", learned);
+      let response = await fetch(`http://localhost:8081/learn-character`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: state.username,
+          character: id,
+          learned: learned,
+          characterId: id,
+        }),
+      });
 
-        // Parse the JSON response and commit the mutation
-        let character = await response.json();
-        commit("setCharacterLearned", {
-            characterId: id,
-            learned: character.learned,
-        });
+      // Parse the JSON response and commit the mutation
+      let character = await response.json();
+      commit("setCharacterLearned", {
+        characterId: id,
+        learned: character.learned,
+      });
     }
     },
 });
