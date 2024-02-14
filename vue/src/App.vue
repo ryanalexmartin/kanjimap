@@ -4,10 +4,13 @@
       <p>Welcome, {{ state.username }}!</p>
       <button @click="logout">Logout</button>
       <h1>Learned {{ learnedCount }} out of {{ totalCharacters }}</h1>
-      <RecycleScroller class="scroller" :items="characters" :item-size="50" :gridItems="20" key-field="id"
-        v-slot="{ item }">
-        <CharacterCard :character="item" @click="updateCharacterLearned(item, !item.learned)" />
-      </RecycleScroller>
+      <div class="big-table">
+      <div v-for="item in characters" :key="item.id">
+        <div class="character-card" :class="{ learned: item.learned }" @click="updateCharacterLearned(item, !item.learned)">
+          {{ item.char }}
+        </div>
+      </div>
+      </div>
     </div>
     <div v-else>
       <LoginView v-if="!state.isRegistering" @login="handleLogin" @register="showRegisterView" />
@@ -18,9 +21,7 @@
 
 <script>
 import { ref, onMounted, reactive } from 'vue';
-import { RecycleScroller } from 'vue-virtual-scroller';
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
-import CharacterCard from './components/CharacterCard.vue';
 import charactersData from './data/variant-WordData.json';
 import LoginView from './components/LoginView.vue';
 import RegisterView from './components/RegisterView.vue';
@@ -28,8 +29,6 @@ import store from './store';
 
 export default {
   components: {
-    CharacterCard,
-    RecycleScroller,
     LoginView,
     RegisterView
   },
@@ -111,17 +110,34 @@ export default {
 </script>
 
 <style>
-.vue-recycle-scroller.direction-vertical.scroller {
-  height: 80vh;
-  width: 100%;
-  /* adjust this value based on your design */
-  overflow-y: auto;
-}
-
 .character-card {
-  height: 32%;
-  padding: 0 12px;
   display: flex;
   align-items: center;
+  border: 1px solid black;
+  padding: 10px;
+  margin: 5px;
+  cursor: pointer;
 }
+div.learned {
+  background-color: lightgreen;
+}
+
+/* For debugging */
+/* div {
+  border: 1px solid black;
+}  */
+
+/* Display a dynamic grid of character cards based on browser width */
+.big-table{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+  gap: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  margin: 0 auto;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
 </style>
