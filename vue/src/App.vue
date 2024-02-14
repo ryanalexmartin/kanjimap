@@ -1,6 +1,6 @@
 <template>
   <header>
-    <h1>KanjiMap</h1>
+    <h1>HanziMap</h1>
     <h2>by Ryan Alex Martin</h2>
     <a href="https://ryanalexmartin.com">ryanalexmartin.com</a>
     <br />
@@ -112,9 +112,9 @@ export default {
           learned: learned,
         }),
       });
-
-      console.log(response);
-
+      
+        console.log(response);
+      
     };
 
     onMounted(() => {
