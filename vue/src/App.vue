@@ -53,6 +53,9 @@ export default {
     const handleLogin = async (username) => { // Add the missing 'commit' parameter
       state.isLoggedIn = true;
       state.username = username;
+
+      // remove local storage
+      localStorage.clear();
       const response = await fetch(
         `http://localhost:8081/fetch-characters?username=${username}`
       );
@@ -60,11 +63,13 @@ export default {
         throw new Error(`HTTP error! status: ${response.status}`);
       } else {
         const characterCards = await response.json();
-        for (const card of characterCards) {
-          if (card.learned) {
-            localStorage.setItem(card.character, card.learned);
-          } else {
-            localStorage.removeItem(card.character);
+        if (characterCards) {
+          for (const card of characterCards) {
+            if (card.learned) {
+              localStorage.setItem(card.character, card.learned);
+            } else {
+              localStorage.removeItem(card.character);
+            }
           }
         }
       }
