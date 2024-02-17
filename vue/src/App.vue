@@ -50,45 +50,54 @@ export default {
       username: localStorage.getItem('username'),
     });
 
-    const handleLogin = async (username) => { // Add the missing 'commit' parameter
-      state.isLoggedIn = true;
-      state.username = username;
 
-      const response = await fetch(
-        `http://localhost:8081/fetch-characters?username=${username}`,
+      const fetchCharacters = async (username) => {
+        const response = await fetch(
+          `http://localhost:8081/fetch-characters?username=${username}`,
           // must include session token: localStorage.getItem('token')
-        {
+          {
             method: 'GET',
             headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
             },
-        }
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      } else {
-        const characterCards = await response.json();
-        if (characterCards) {
-          for (const card of characterCards) {
-            if (card.learned) {
-              localStorage.setItem(card.character, card.learned);
-            } else {
-              localStorage.removeItem(card.character);
+          }
+        );
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        } else {
+          const characterCards = await response.json();
+          if (characterCards) {
+            for (const card of characterCards) {
+              if (card.learned) {
+                localStorage.setItem(card.character, card.learned);
+              } else {
+                localStorage.removeItem(card.character);
+              }
             }
           }
         }
+        characters.value = charactersData
+          .filter(char => char.serial.includes('A'))
+          .map((char) => {
+            return {
+              id: char.serial,
+              char: char.word,
+              learned: localStorage.getItem(char.word) === 'true',
+            };
+          });
+        learnedCount.value = characters.value.filter(c => c.learned).length;
+      };
+
+      if (state.isLoggedIn) {
+          fetchCharacters(state.username);
       }
-      characters.value = charactersData
-        .filter(char => char.serial.includes('A'))
-        .map((char) => {
-          return {
-            id: char.serial,
-            char: char.word,
-            learned: localStorage.getItem(char.word) === 'true',
-          };
-        });
-      learnedCount.value = characters.value.filter(c => c.learned).length;
+
+
+    const handleLogin = async (username) => { // Add the missing 'commit' parameter
+      state.isLoggedIn = true;
+      state.username = username;
+        await fetchCharacters(username);
     };
     const logout = () => {
       state.isLoggedIn = false;
