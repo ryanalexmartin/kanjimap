@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
     "os"
+    "strconv"
+    "github.com/joho/godotenv"
 
     _ "github.com/go-sql-driver/mysql"
 
@@ -39,13 +41,18 @@ type CharacterCard struct {
 
 
 func main() {
-    // Get the JWT key from the environment
-    jwtKey := os.Getenv("JWT_KEY")
-    if jwtKey == "" {
-        log.Fatal("JWT_KEY environment variable not set")
+	var err error
+    // set env vars from .env file
+    err = godotenv.Load("../vue/.env")
+    if err != nil {
+        log.Fatal("Error loading .env file")
     }
 
-	var err error
+    // check if the secret key is set
+    if os.Getenv("SECRET_KEY") == "" {
+        log.Fatal("SECRET_KEY environment variable not set")
+    }
+
 	db, err = sql.Open("mysql", "user:password@/kanjimap")
 	if err != nil {
 		log.Fatal(err)
@@ -71,7 +78,12 @@ func main() {
     // allow all origins
     handler := cors.AllowAll().Handler(mux)
 
-	port := 8081
+    var port int
+    port, err = strconv.Atoi(os.Getenv("VUE_APP_PORT"))
+    if err != nil {
+        log.Fatal("PORT environment variable not set")
+    }
+
 	fmt.Printf("Starting application on port %v \n", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), handler))
 }
@@ -141,9 +153,16 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-    // Create a token
-    token := jwt.New(jwt.SigningMethodHS256)
-    tokenString, err = token.SignedString([]byte(os.Getenv("JWT_KEY")))
+    // Create a new token via random generation
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+        "username": username,
+    })
+
+    // Sign and get the complete encoded token as a string
+    tokenString, err = token.SignedString([]byte(os.Getenv("SECRET_KEY")))
+
+    fmt.Println("Token", tokenString)
+
     if err != nil {
         http.Error(w, "Unable to sign token", http.StatusInternalServerError)
         fmt.Println("Unable to sign token", err)
@@ -170,20 +189,18 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
     username := r.FormValue("username")
-    reqToken := r.Header.Get("Authorization")
+    reqToken := r.Header.Get("Authorization")[7:] // remove "Bearer " from the token
 
-    token, err := jwt.Parse(reqToken[7:], func(token *jwt.Token) (interface{}, error) {
-        if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-            return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-        }
-        return []byte(os.Getenv("JWT_KEY")), nil
-    })
+    // Check if jwt matches the one in the database 
+    var tokenString string
+    err := db.QueryRow("SELECT token FROM users WHERE username=?", username).Scan(&tokenString)
     if err != nil {
         http.Error(w, "Invalid token", http.StatusUnauthorized)
         fmt.Println("Invalid token", err)
         return
     }
-    if !token.Valid {
+    fmt.Printf("Token: %v\n", tokenString)
+    if reqToken != tokenString {
         http.Error(w, "Invalid token", http.StatusUnauthorized)
         fmt.Println("Invalid token", err)
         return

@@ -32,7 +32,7 @@ export default {
     methods: {
         register() {
             console.log('Registering user:', this.username);
-            fetch('http://localhost:8081/register', {
+            fetch(`${process.env.VUE_APP_API_URL}:${process.env.VUE_APP_API_PORT}/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -40,12 +40,10 @@ export default {
                 body: new URLSearchParams({
                     username: this.username,
                     password: this.password,
-                    email: this.email
                 }),
             })
                 .then(response => {
                     if (!response.ok) {
-                        alert(response.statusText);
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     return response.text();
@@ -61,7 +59,7 @@ export default {
                 });
         },
         login() {
-            fetch('http://localhost:8081/login', {
+            fetch(`${process.env.VUE_APP_API_URL}:${process.env.VUE_APP_API_PORT}/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',

@@ -50,11 +50,11 @@ export default {
       username: localStorage.getItem('username'),
     });
 
+      console.log(process.env.HOST);
 
       const fetchCharacters = async (username) => {
         const response = await fetch(
-          `http://localhost:8081/fetch-characters?username=${username}`,
-          // must include session token: localStorage.getItem('token')
+            `${process.env.VUE_APP_URL}:${process.env.VUE_APP_PORT}/fetch-characters?username=${username}`,
           {
             method: 'GET',
             headers: {
@@ -121,7 +121,7 @@ export default {
       localStorage.setItem(character.char, learned);
       learnedCount.value = characters.value.filter(c => c.learned).length;
       // Send a request to the server to update the learned status (JSON)
-      let response = fetch('http://localhost:8081/learn-character', {
+        let response = fetch(`${process.env.VUE_APP_URL}:${process.env.VUE_APP_PORT}/learn-character`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

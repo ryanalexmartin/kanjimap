@@ -9,8 +9,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "core-js": "^3.8.3",
-    "vue": "^3.2.13"
+    "core-js": "^3.8.3"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
