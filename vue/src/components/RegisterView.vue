@@ -45,6 +45,7 @@ export default {
             })
                 .then(response => {
                     if (!response.ok) {
+                        alert(response.statusText);
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     return response.text();
