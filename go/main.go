@@ -124,11 +124,12 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
-    email := ""
 	var user User
     var tokenString string
-	row := db.QueryRow("SELECT * FROM users WHERE username = ?", username)
-    err := row.Scan(&user.ID, &user.Username, &user.Password, &email, &tokenString)
+    // everything but email and tokenString is returned
+	row := db.QueryRow("SELECT id, username, password FROM users WHERE username=?", username)
+
+    err := row.Scan(&user.ID, &user.Username, &user.Password)
     if err != nil {
         http.Error(w, "Invalid username", http.StatusUnauthorized)
         fmt.Println("Invalid username", err)
