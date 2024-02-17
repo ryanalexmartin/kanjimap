@@ -57,11 +57,16 @@ func main() {
 		log.Fatal("Unable to connect to MySQL server or database does not exist: ", err)
 	}
 
+    fs := http.FileServer(http.Dir("../vue/dist"))
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/register", registerHandler)
 	mux.HandleFunc("/login", loginHandler)
 	mux.HandleFunc("/fetch-characters", fetchAllCharactersHandler)
 	mux.HandleFunc("/learn-character", learnCharacter)
+
+    // serve the frontend
+    mux.Handle("/", fs)
 
     // allow all origins
     handler := cors.AllowAll().Handler(mux)
