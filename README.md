@@ -4,6 +4,9 @@ I wanted to be able to see at a glance how many Chinese characters I've learned,
 
 I'll accept any pull requests, and comments/suggestions are encouraged.  Feel free to email me, this is just a fun side project of mine
 but I should have some time to work on it.
+<img width="743" alt="Screenshot 2024-02-17 at 1 02 47 PM" src="https://github.com/ryanalexmartin/kanjimap/assets/15975303/9e0ae874-d1d0-4ee8-9d57-dbd91b109068">
+
+
 
 ## Project Structure
 
