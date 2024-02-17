@@ -79,6 +79,8 @@ func main() {
 func registerHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
+    email := r.FormValue("email")
+    tokenString := ""
 
 	// Check if username already exists
 	var userExists bool
@@ -96,7 +98,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	// Create a new userID via an auto-incrementing column
-	result, err := db.Exec("INSERT INTO users (username, password) VALUES (?, ?)", username, hashedPassword)
+    result, err := db.Exec("INSERT INTO users (username, password, email, token) VALUES (?, ?, ?, ?)", username, hashedPassword, email, tokenString)
 	if err != nil {
 		http.Error(w, "Unable to register user", http.StatusInternalServerError)
 		fmt.Println("Unable to register user", err)
@@ -122,10 +124,11 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
+    email := ""
 	var user User
     var tokenString string
 	row := db.QueryRow("SELECT * FROM users WHERE username = ?", username)
-    err := row.Scan(&user.ID, &user.Username, &user.Password, &tokenString)
+    err := row.Scan(&user.ID, &user.Username, &user.Password, &email, &tokenString)
     if err != nil {
         http.Error(w, "Invalid username", http.StatusUnauthorized)
         fmt.Println("Invalid username", err)

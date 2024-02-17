@@ -40,6 +40,7 @@ export default {
                 body: new URLSearchParams({
                     username: this.username,
                     password: this.password,
+                    email: this.email
                 }),
             })
                 .then(response => {
