@@ -6,12 +6,16 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+    "os"
 
+    _ "github.com/go-sql-driver/mysql"
+
+    "github.com/dgrijalva/jwt-go"
 	"github.com/rs/cors"
-
-	_ "github.com/go-sql-driver/mysql"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var db *sql.DB
 
 type User struct {
 	ID       int    `json:"id"`
@@ -33,9 +37,14 @@ type CharacterCard struct {
 	CharacterID string `json:"characterId"` // "CharacterID" emphasizes that it's a string, not an int
 }
 
-var db *sql.DB
 
 func main() {
+    // Get the JWT key from the environment
+    jwtKey := os.Getenv("JWT_KEY")
+    if jwtKey == "" {
+        log.Fatal("JWT_KEY environment variable not set")
+    }
+
 	var err error
 	db, err = sql.Open("mysql", "user:password@/kanjimap")
 	if err != nil {
@@ -54,9 +63,8 @@ func main() {
 	mux.HandleFunc("/fetch-characters", fetchAllCharactersHandler)
 	mux.HandleFunc("/learn-character", learnCharacter)
 
-	handler := cors.New(cors.Options{
-		AllowedOrigins: []string{"http://localhost:8080"}, // Replace with the origin of your Vue app
-	}).Handler(mux)
+    // allow all origins
+    handler := cors.AllowAll().Handler(mux)
 
 	port := 8081
 	fmt.Printf("Starting application on port %v \n", port)
@@ -110,35 +118,76 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 	var user User
+    var tokenString string
 	row := db.QueryRow("SELECT * FROM users WHERE username = ?", username)
-	err := row.Scan(&user.ID, &user.Username, &user.Password)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			http.Error(w, "User not found", http.StatusUnauthorized)
-			return
-		}
+    err := row.Scan(&user.ID, &user.Username, &user.Password, &tokenString)
+    if err != nil {
+        http.Error(w, "Invalid username", http.StatusUnauthorized)
+        fmt.Println("Invalid username", err)
+        return
+    }
 
-		http.Error(w, "Error logging in", http.StatusInternalServerError)
-		return
-	}
 	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		http.Error(w, "Invalid password", http.StatusUnauthorized)
 		return
 	}
-	w.Write([]byte("Logged in successfully"))
+
+    // Create a token
+    token := jwt.New(jwt.SigningMethodHS256)
+    tokenString, err = token.SignedString([]byte(os.Getenv("JWT_KEY")))
+    if err != nil {
+        http.Error(w, "Unable to sign token", http.StatusInternalServerError)
+        fmt.Println("Unable to sign token", err)
+        return
+    }
+    // save the token in the database
+    _, err = db.Exec("UPDATE users SET token=? WHERE username=?", tokenString, username)
+    if err != nil {
+        http.Error(w, "Database error", http.StatusInternalServerError)
+        fmt.Println("Database error", err)
+        return
+    }
+
+    // Return the token
+    type JsonResponse struct {
+        Token string `json:"token"`
+    }
+    jsonResponse := JsonResponse{Token: tokenString}
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(jsonResponse)
+
+    fmt.Printf("User %v logged in successfully\n", username)
 }
 
 func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
-	username := r.FormValue("username")
+    username := r.FormValue("username")
+    reqToken := r.Header.Get("Authorization")
+
+    token, err := jwt.Parse(reqToken[7:], func(token *jwt.Token) (interface{}, error) {
+        if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+            return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+        }
+        return []byte(os.Getenv("JWT_KEY")), nil
+    })
+    if err != nil {
+        http.Error(w, "Invalid token", http.StatusUnauthorized)
+        fmt.Println("Invalid token", err)
+        return
+    }
+    if !token.Valid {
+        http.Error(w, "Invalid token", http.StatusUnauthorized)
+        fmt.Println("Invalid token", err)
+        return
+    }
+
+    // get user id
 	var userID int
-	err := db.QueryRow("SELECT id FROM users WHERE username=?", username).Scan(&userID)
+    err = db.QueryRow("SELECT id FROM users WHERE username=?", username).Scan(&userID)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		fmt.Println("Database error", err)
 		return
 	}
-	fmt.Printf("Downloading characters for user %v with id %v\n", r.FormValue("username"), userID)
-
 	rows, err := db.Query("SELECT characters.character_id, user_character_progress.learned FROM characters LEFT JOIN user_character_progress ON characters.character_id = user_character_progress.character_id AND user_character_progress.user_id = ?", userID)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
@@ -191,8 +240,6 @@ func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func learnCharacter(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("learnCharacter")
-
 	var character CharacterCard
 	err := json.NewDecoder(r.Body).Decode(&character)
 	if err != nil {

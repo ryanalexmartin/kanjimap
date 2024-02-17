@@ -36,10 +36,14 @@ export default {
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    return response.text();
+                    return response.json();
                 })
-                .then(message => {
-                    console.log(message);
+                .then(response => {
+                    // save the token in local storage
+                    const token = response.token;
+                    console.log('token', token);
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('username', this.username);
                     this.$emit('login', this.username);
                 })
                 .catch(error => {

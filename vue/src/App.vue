@@ -46,18 +46,24 @@ export default {
   setup() {
     const state = reactive({
       isRegistering: false,
-      isLoggedIn: false,
-      username: ''
+      isLoggedIn: localStorage.getItem('token') !== null,
+      username: localStorage.getItem('username'),
     });
 
     const handleLogin = async (username) => { // Add the missing 'commit' parameter
       state.isLoggedIn = true;
       state.username = username;
 
-      // remove local storage
-      localStorage.clear();
       const response = await fetch(
-        `http://localhost:8081/fetch-characters?username=${username}`
+        `http://localhost:8081/fetch-characters?username=${username}`,
+          // must include session token: localStorage.getItem('token')
+        {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+        }
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -87,6 +93,7 @@ export default {
     const logout = () => {
       state.isLoggedIn = false;
       state.username = '';
+        localStorage.clear();
     };
     const showRegisterView = () => {
       state.isRegistering = true;
