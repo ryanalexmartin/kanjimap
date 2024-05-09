@@ -53,7 +53,7 @@ func main() {
         log.Fatal("SECRET_KEY environment variable not set")
     }
 
-	db, err = sql.Open("mysql", "user:password@/kanjimap")
+    db, err = sql.Open("mysql", "user:password@tcp(db:3306)/kanjimap")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -124,13 +124,6 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write([]byte(fmt.Sprintf("User successfully registered with ID: %d", userID)))
-	_, err = db.Exec("INSERT INTO users (username, password) VALUES (?, ?)", username, hashedPassword)
-	if err != nil {
-		http.Error(w, "Unable to register user", http.StatusInternalServerError)
-		fmt.Println("Unable to register user", err)
-		return
-	}
-	w.Write([]byte("User successfully registered"))
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {

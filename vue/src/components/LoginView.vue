@@ -23,7 +23,7 @@ export default {
     methods: {
         login() {
             console.log('Logging in user:', this.username);
-            fetch(`${process.env.VUE_APP_URL}:${process.env.VUE_APP_PORT}/login`, {
+            fetch(`https://kanjimap.cargocult.tech/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',

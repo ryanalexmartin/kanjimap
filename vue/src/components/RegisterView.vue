@@ -32,7 +32,7 @@ export default {
     methods: {
         register() {
             console.log('Registering user:', this.username);
-            fetch(`${process.env.VUE_APP_API_URL}:${process.env.VUE_APP_API_PORT}/register`, {
+            fetch(`https://kanjimap.cargocult.tech/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -59,7 +59,7 @@ export default {
                 });
         },
         login() {
-            fetch(`${process.env.VUE_APP_API_URL}:${process.env.VUE_APP_API_PORT}/login`, {
+            fetch(`https://kanjimap.cargocult.tech/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
