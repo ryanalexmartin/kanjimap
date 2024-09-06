@@ -88,7 +88,7 @@
 
             const fetchCharacters = async (username) => {
                 const response = await fetch(
-                    `${process.env.VUE_APP_URL}:${process.env.VUE_APP_PORT}/fetch-characters?username=${username}`,
+                    `${process.env.VUE_APP_API_URL}:${process.env.VUE_APP_API_PORT}/fetch-characters?username=${username}`,
                     {
                         method: 'GET',
                         headers: {
@@ -155,7 +155,7 @@
                 localStorage.setItem(character.char, learned);
                 learnedCount.value = characters.value.filter(c => c.learned).length;
                 // Send a request to the server to update the learned status (JSON)
-                let response = fetch(`${process.env.VUE_APP_URL}:${process.env.VUE_APP_PORT}/learn-character`, {
+                let response = fetch(`${process.env.VUE_APP_API_URL}:${process.env.VUE_APP_API_PORT}/learn-character`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
