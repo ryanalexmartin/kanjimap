@@ -110,55 +110,42 @@ func main() {
 }
 
 func registerHandler(w http.ResponseWriter, r *http.Request) {
-  fmt.Println("Received registration request")
+    fmt.Println("Received registration request")
+    
+    username := r.FormValue("username")
+    password := r.FormValue("password")
+    email := r.FormValue("email")
+    
+    fmt.Printf("Registration attempt for username: %s, email: %s\n", username, email)
 
-  username := r.FormValue("username")
-  password := r.FormValue("password")
-  email := r.FormValue("email")
+    var userExists bool
+    err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username=?)", username).Scan(&userExists)
+    if err != nil {
+        http.Error(w, "Database error", http.StatusInternalServerError)
+        fmt.Println("Database error", err)
+        return
+    }
+    if userExists {
+        http.Error(w, "Username already exists", http.StatusBadRequest)
+        fmt.Println("Username already exists")
+        return
+    }
 
-  fmt.Printf("Registration attempt for username: %s, email: %s\n", username, email)
+    hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+    result, err := db.Exec("INSERT INTO users (username, password, email, token) VALUES (?, ?, ?, ?)", username, hashedPassword, email, "")
+    if err != nil {
+        http.Error(w, "Unable to register user", http.StatusInternalServerError)
+        fmt.Println("Unable to register user", err)
+        return
+    }
 
-  tokenString := ""
-
-  // Check if username already exists
-  var userExists bool
-  err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username=?)", username).Scan(&userExists)
-  if err != nil {
-    http.Error(w, "Database error", http.StatusInternalServerError)
-    fmt.Println("Database error", err)
-    return
-  }
-  if userExists {
-    http.Error(w, "Username already exists", http.StatusBadRequest)
-    fmt.Println("Username already exists", err)
-    return
-  }
-
-  hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-  // Create a new userID via an auto-incrementing column
-  result, err := db.Exec("INSERT INTO users (username, password, email, token) VALUES (?, ?, ?, ?)", username, hashedPassword, email, tokenString)
-  if err != nil {
-    http.Error(w, "Unable to register user", http.StatusInternalServerError)
-    fmt.Println("Unable to register user", err)
-    return
-  }
-
-  userID, err := result.LastInsertId()
-  if err != nil {
-    http.Error(w, "Unable to get user ID", http.StatusInternalServerError)
-    fmt.Println("Unable to get user ID", err)
-    return
-  }
-  _, err = db.Exec("INSERT INTO users (username, password) VALUES (?, ?)", username, hashedPassword)
-  if err != nil {
-    http.Error(w, "Unable to register user", http.StatusInternalServerError)
-    fmt.Println("Unable to register user", err)
-    return
-  }
-
-  fmt.Println("Registration successful")
-  w.WriteHeader(http.StatusOK)
-  w.Write([]byte(fmt.Sprintf("User successfully registered with ID: %d", userID)))
+    userID, err := result.LastInsertId()
+    if err != nil {
+        http.Error(w, "Unable to get user ID", http.StatusInternalServerError)
+        fmt.Println("Unable to get user ID", err)
+        return
+    }
+    w.Write([]byte(fmt.Sprintf("User successfully registered with ID: %d", userID)))
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
