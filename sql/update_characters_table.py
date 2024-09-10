@@ -22,6 +22,8 @@ cursor.execute("CREATE DATABASE IF NOT EXISTS kanjimap")
 cursor.execute("USE kanjimap")
 
 # Create tables
+
+# Create tables
 cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -49,6 +51,17 @@ cursor.execute("""
         FOREIGN KEY (user_id) REFERENCES users(id),
         FOREIGN KEY (character_id) REFERENCES characters(character_id)
     )
+""")
+
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS character_metadata (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        chinese_character VARCHAR(255) UNIQUE NOT NULL,
+        frequency INT,
+        cumulative_frequency FLOAT,
+        pinyin VARCHAR(255),
+        english TEXT
+    );
 """)
 
 # Read the JSON file

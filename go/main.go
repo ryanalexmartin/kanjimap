@@ -35,120 +35,120 @@ type Character struct {
 
 // This is used to track the learned status of characters for a user
 type CharacterCard struct {
-    Username            string  `json:"username"`
-    Character           string  `json:"character"`
-    Learned             bool    `json:"learned"`
-    CharacterID         string  `json:"characterId"`
-    Frequency           int     `json:"frequency"`
-    CumulativeFrequency float64 `json:"cumulativeFrequency"`
-    Pinyin              string  `json:"pinyin"`
-    English             string  `json:"english"`
+  Username            string  `json:"username"`
+  Character           string  `json:"character"`
+  Learned             bool    `json:"learned"`
+  CharacterID         string  `json:"characterId"`
+  Frequency           int     `json:"frequency"`
+  CumulativeFrequency float64 `json:"cumulativeFrequency"`
+  Pinyin              string  `json:"pinyin"`
+  English             string  `json:"english"`
 }
 
 func main() {
-    var err error
-    // set env vars from .env file
-    err = godotenv.Load("../vue/.env")
-    if err != nil {
-        log.Fatal("Error loading .env file")
-    }
+  var err error
+  // set env vars from .env file
+  err = godotenv.Load("../vue/.env")
+  if err != nil {
+    log.Fatal("Error loading .env file")
+  }
 
-    // check if the secret key is set
-    if os.Getenv("SECRET_KEY") == "" {
-        log.Fatal("SECRET_KEY environment variable not set")
-    }
+  // check if the secret key is set
+  if os.Getenv("SECRET_KEY") == "" {
+    log.Fatal("SECRET_KEY environment variable not set")
+  }
 
-    db, err = sql.Open("mysql", "user:password@/kanjimap")
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer db.Close()
+  db, err = sql.Open("mysql", "user:password@/kanjimap")
+  if err != nil {
+    log.Fatal(err)
+  }
+  defer db.Close()
 
-    err = db.Ping()
-    if err != nil {
-        log.Fatal("Unable to connect to MySQL server or database does not exist: ", err)
-    }
+  err = db.Ping()
+  if err != nil {
+    log.Fatal("Unable to connect to MySQL server or database does not exist: ", err)
+  }
 
-    fs := http.FileServer(http.Dir("../vue/dist"))
+  fs := http.FileServer(http.Dir("../vue/dist"))
 
-    mux := http.NewServeMux()
-    mux.HandleFunc("/register", registerHandler)
-    mux.HandleFunc("/login", loginHandler)
-    mux.HandleFunc("/fetch-characters", fetchAllCharactersHandler)
-    mux.HandleFunc("/learn-character", learnCharacter)
+  mux := http.NewServeMux()
+  mux.HandleFunc("/register", registerHandler)
+  mux.HandleFunc("/login", loginHandler)
+  mux.HandleFunc("/fetch-characters", fetchAllCharactersHandler)
+  mux.HandleFunc("/learn-character", learnCharacter)
 
-    // serve the frontend
-    mux.Handle("/", fs)
+  // serve the frontend
+  mux.Handle("/", fs)
 
-    // Determine if we're in a local development environment
-    isLocalDev := os.Getenv("VUE_APP_API_URL") == "http://localhost"
+  // Determine if we're in a local development environment
+  isLocalDev := os.Getenv("VUE_APP_API_URL") == "http://localhost"
 
-    var handler http.Handler
-    if isLocalDev {
-        // Allow all origins in local development
-        c := cors.New(cors.Options{
-            AllowedOrigins: []string{"*"},
-            AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-            AllowedHeaders: []string{"*"},
-        })
-        handler = c.Handler(mux)
-    } else {
-        // Use more restrictive CORS settings in production
-        c := cors.New(cors.Options{
-            AllowedOrigins: []string{os.Getenv("VUE_APP_URL")},
-            AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-            AllowedHeaders: []string{"Authorization", "Content-Type"},
-        })
-        handler = c.Handler(mux)
-    }
+  var handler http.Handler
+  if isLocalDev {
+    // Allow all origins in local development
+    c := cors.New(cors.Options{
+      AllowedOrigins: []string{"*"},
+      AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+      AllowedHeaders: []string{"*"},
+    })
+    handler = c.Handler(mux)
+  } else {
+    // Use more restrictive CORS settings in production
+    c := cors.New(cors.Options{
+      AllowedOrigins: []string{os.Getenv("VUE_APP_URL")},
+      AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+      AllowedHeaders: []string{"Authorization", "Content-Type"},
+    })
+    handler = c.Handler(mux)
+  }
 
-    var port int
-    port, err = strconv.Atoi(os.Getenv("VUE_APP_API_PORT"))
-    if err != nil {
-        log.Fatal("PORT environment variable not set")
-    }
+  var port int
+  port, err = strconv.Atoi(os.Getenv("VUE_APP_API_PORT"))
+  if err != nil {
+    log.Fatal("PORT environment variable not set")
+  }
 
-    fmt.Printf("Starting application on port %v \n", port)
-    log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), handler))
+  fmt.Printf("Starting application on port %v \n", port)
+  log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), handler))
 }
 
 func registerHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Println("Received registration request")
-    
-    username := r.FormValue("username")
-    password := r.FormValue("password")
-    email := r.FormValue("email")
-    
-    fmt.Printf("Registration attempt for username: %s, email: %s\n", username, email)
+  fmt.Println("Received registration request")
 
-    var userExists bool
-    err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username=?)", username).Scan(&userExists)
-    if err != nil {
-        http.Error(w, "Database error", http.StatusInternalServerError)
-        fmt.Println("Database error", err)
-        return
-    }
-    if userExists {
-        http.Error(w, "Username already exists", http.StatusBadRequest)
-        fmt.Println("Username already exists")
-        return
-    }
+  username := r.FormValue("username")
+  password := r.FormValue("password")
+  email := r.FormValue("email")
 
-    hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-    result, err := db.Exec("INSERT INTO users (username, password, email, token) VALUES (?, ?, ?, ?)", username, hashedPassword, email, "")
-    if err != nil {
-        http.Error(w, "Unable to register user", http.StatusInternalServerError)
-        fmt.Println("Unable to register user", err)
-        return
-    }
+  fmt.Printf("Registration attempt for username: %s, email: %s\n", username, email)
 
-    userID, err := result.LastInsertId()
-    if err != nil {
-        http.Error(w, "Unable to get user ID", http.StatusInternalServerError)
-        fmt.Println("Unable to get user ID", err)
-        return
-    }
-    w.Write([]byte(fmt.Sprintf("User successfully registered with ID: %d", userID)))
+  var userExists bool
+  err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username=?)", username).Scan(&userExists)
+  if err != nil {
+    http.Error(w, "Database error", http.StatusInternalServerError)
+    fmt.Println("Database error", err)
+    return
+  }
+  if userExists {
+    http.Error(w, "Username already exists", http.StatusBadRequest)
+    fmt.Println("Username already exists")
+    return
+  }
+
+  hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+  result, err := db.Exec("INSERT INTO users (username, password, email, token) VALUES (?, ?, ?, ?)", username, hashedPassword, email, "")
+  if err != nil {
+    http.Error(w, "Unable to register user", http.StatusInternalServerError)
+    fmt.Println("Unable to register user", err)
+    return
+  }
+
+  userID, err := result.LastInsertId()
+  if err != nil {
+    http.Error(w, "Unable to get user ID", http.StatusInternalServerError)
+    fmt.Println("Unable to get user ID", err)
+    return
+  }
+  w.Write([]byte(fmt.Sprintf("User successfully registered with ID: %d", userID)))
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -265,57 +265,58 @@ func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
     fmt.Println("Database error", err)
     return
   }
+
+  // Update the query to use the new schema
   rows, err := db.Query(`
-      SELECT c.character_id, ucp.learned, c.chinese_character, cm.frequency, cm.cumulative_frequency, cm.pinyin, cm.english
-      FROM characters c
-      LEFT JOIN user_character_progress ucp ON c.character_id = ucp.character_id AND ucp.user_id = ?
-      LEFT JOIN character_metadata cm ON c.character_id = cm.character_id
+  SELECT c.character_id, ucp.learned, c.chinese_character, cm.frequency, cm.cumulative_frequency, cm.pinyin, cm.english
+  FROM characters c
+  LEFT JOIN user_character_progress ucp ON c.character_id = ucp.character_id AND ucp.user_id = ?
+  LEFT JOIN character_metadata cm ON c.chinese_character = cm.chinese_character
   `, userID)
   if err != nil {
-      http.Error(w, "Database error", http.StatusInternalServerError)
-      fmt.Println("Database error", err)
-      return
+    http.Error(w, "Database error", http.StatusInternalServerError)
+    fmt.Println("Database error", err)
+    return
   }
   defer rows.Close()
 
   var characterCards []CharacterCard
   for rows.Next() {
-      var card CharacterCard
-      var learned sql.NullBool
-      var character sql.NullString
-      var frequency sql.NullInt64
-      var cumulativeFrequency sql.NullFloat64
-      var pinyin, english sql.NullString
+    var card CharacterCard
+    var learned sql.NullBool
+    var character sql.NullString
+    var frequency sql.NullInt64
+    var cumulativeFrequency sql.NullFloat64
+    var pinyin, english sql.NullString
 
-      err := rows.Scan(&card.CharacterID, &learned, &character, &frequency, &cumulativeFrequency, &pinyin, &english)
-      if err != nil {
-          http.Error(w, "Database error", http.StatusInternalServerError)
-          fmt.Println("Database error", err)
-          return
-      }
+    err := rows.Scan(&card.CharacterID, &learned, &character, &frequency, &cumulativeFrequency, &pinyin, &english)
+    if err != nil {
+      http.Error(w, "Database error", http.StatusInternalServerError)
+      fmt.Println("Database error", err)
+      return
+    }
 
-      card.Username = username
-      if character.Valid {
-          card.Character = character.String
-      } else {
-          card.Character = "Character not found"
-      }
-      card.Learned = learned.Bool
-      fmt.Printf("frequency: {value: %d, valid: %t}\n", frequency.Int64, frequency.Valid)
-      if frequency.Valid {
-          card.Frequency = int(frequency.Int64)
-      }
-      if cumulativeFrequency.Valid {
-          card.CumulativeFrequency = cumulativeFrequency.Float64
-      }
-      if pinyin.Valid {
-          card.Pinyin = pinyin.String
-      }
-      if english.Valid {
-          card.English = english.String
-      }
+    card.Username = username
+    if character.Valid {
+      card.Character = character.String
+    } else {
+      card.Character = "Character not found"
+    }
+    card.Learned = learned.Bool
+    if frequency.Valid {
+      card.Frequency = int(frequency.Int64)
+    }
+    if cumulativeFrequency.Valid {
+      card.CumulativeFrequency = cumulativeFrequency.Float64
+    }
+    if pinyin.Valid {
+      card.Pinyin = pinyin.String
+    }
+    if english.Valid {
+      card.English = english.String
+    }
 
-      characterCards = append(characterCards, card)
+    characterCards = append(characterCards, card)
   }
 
   w.Header().Set("Content-Type", "application/json")
