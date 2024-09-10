@@ -92,7 +92,6 @@
             console.log('There was a problem with the login request.', error);
           });
       }
-
     }
   }
 </script>

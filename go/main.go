@@ -101,7 +101,7 @@ func main() {
     })
     handler = c.Handler(mux)
   }
-
+  
   var port int
   port, err = strconv.Atoi(os.Getenv("VUE_APP_API_PORT"))
   if err != nil {
