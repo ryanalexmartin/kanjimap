@@ -35,12 +35,15 @@ type Character struct {
 
 // This is used to track the learned status of characters for a user
 type CharacterCard struct {
-  Username    string `json:"username"`
-  Character   string `json:"character"`
-  Learned     bool   `json:"learned"`
-  CharacterID string `json:"characterId"` // "CharacterID" emphasizes that it's a string, not an int
+    Username            string  `json:"username"`
+    Character           string  `json:"character"`
+    Learned             bool    `json:"learned"`
+    CharacterID         string  `json:"characterId"`
+    Frequency           int     `json:"frequency"`
+    CumulativeFrequency float64 `json:"cumulativeFrequency"`
+    Pinyin              string  `json:"pinyin"`
+    English             string  `json:"english"`
 }
-
 
 func main() {
     var err error
@@ -78,7 +81,7 @@ func main() {
     mux.Handle("/", fs)
 
     // Determine if we're in a local development environment
-    isLocalDev := os.Getenv("VUE_APP_URL") == "http://localhost"
+    isLocalDev := os.Getenv("VUE_APP_API_URL") == "http://localhost"
 
     var handler http.Handler
     if isLocalDev {
@@ -100,7 +103,7 @@ func main() {
     }
 
     var port int
-    port, err = strconv.Atoi(os.Getenv("VUE_APP_PORT"))
+    port, err = strconv.Atoi(os.Getenv("VUE_APP_API_PORT"))
     if err != nil {
         log.Fatal("PORT environment variable not set")
     }
@@ -262,53 +265,59 @@ func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
     fmt.Println("Database error", err)
     return
   }
-  rows, err := db.Query("SELECT characters.character_id, user_character_progress.learned FROM characters LEFT JOIN user_character_progress ON characters.character_id = user_character_progress.character_id AND user_character_progress.user_id = ?", userID)
+  rows, err := db.Query(`
+      SELECT c.character_id, ucp.learned, c.chinese_character, cm.frequency, cm.cumulative_frequency, cm.pinyin, cm.english
+      FROM characters c
+      LEFT JOIN user_character_progress ucp ON c.character_id = ucp.character_id AND ucp.user_id = ?
+      LEFT JOIN character_metadata cm ON c.character_id = cm.character_id
+  `, userID)
   if err != nil {
-    http.Error(w, "Database error", http.StatusInternalServerError)
-    fmt.Println("Database error", err)
-    return
+      http.Error(w, "Database error", http.StatusInternalServerError)
+      fmt.Println("Database error", err)
+      return
   }
   defer rows.Close()
 
   var characterCards []CharacterCard
   for rows.Next() {
-    var card CharacterCard
-    var learned sql.NullBool
-    err := rows.Scan(&card.CharacterID, &learned)
-    if err != nil {
-      http.Error(w, "Database error", http.StatusInternalServerError)
-      fmt.Println("Database error", err)
-      return
-    }
-    if !learned.Valid {
-      continue
-    }
-    var character sql.NullString
-    row, err := db.Query("SELECT chinese_character FROM characters WHERE character_id=?", card.CharacterID)
-    if err != nil {
-      http.Error(w, "Database error", http.StatusInternalServerError)
-      fmt.Println("Database error", err)
-      return
-    }
-    defer row.Close()
-    for row.Next() {
-      err := row.Scan(&character)
-      if err != nil {
-        http.Error(w, "Database error", http.StatusInternalServerError)
-        fmt.Println("Database error", err)
-        return
-      }
-    }
-    card.Username = username
-    if character.Valid {
-      card.Character = character.String
-    } else {
-      card.Character = "Character not found"
-    }
+      var card CharacterCard
+      var learned sql.NullBool
+      var character sql.NullString
+      var frequency sql.NullInt64
+      var cumulativeFrequency sql.NullFloat64
+      var pinyin, english sql.NullString
 
-    card.Learned = learned.Bool
-    characterCards = append(characterCards, card)
+      err := rows.Scan(&card.CharacterID, &learned, &character, &frequency, &cumulativeFrequency, &pinyin, &english)
+      if err != nil {
+          http.Error(w, "Database error", http.StatusInternalServerError)
+          fmt.Println("Database error", err)
+          return
+      }
+
+      card.Username = username
+      if character.Valid {
+          card.Character = character.String
+      } else {
+          card.Character = "Character not found"
+      }
+      card.Learned = learned.Bool
+      fmt.Printf("frequency: {value: %d, valid: %t}\n", frequency.Int64, frequency.Valid)
+      if frequency.Valid {
+          card.Frequency = int(frequency.Int64)
+      }
+      if cumulativeFrequency.Valid {
+          card.CumulativeFrequency = cumulativeFrequency.Float64
+      }
+      if pinyin.Valid {
+          card.Pinyin = pinyin.String
+      }
+      if english.Valid {
+          card.English = english.String
+      }
+
+      characterCards = append(characterCards, card)
   }
+
   w.Header().Set("Content-Type", "application/json")
   json.NewEncoder(w).Encode(characterCards)
 }
