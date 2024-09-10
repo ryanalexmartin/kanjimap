@@ -1,0 +1,30 @@
+<!-- In this page, we will allow the user to set their username and password for the firefox extension -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Options</title>
+    <style>
+      body {
+        width: 300px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Options</h1>
+    <form id="options-form">
+      <label for="username">Username:</label>
+      <input type="text" id="username" name="username" required>
+      <br>
+      <label for="password">Password:</label>
+      <input type="password" id="password" name="password" required>
+      <br>
+
+      <!-- <input type="checkbox" id="enable-zhuyin" name="enable-zhuyin" value="zhuyin">Enable Zhuyin -->
+      <!-- <input type="checkbox" id="enable-highlight" name="enable-highlight" value="highlight">Enable Highlight -->
+      <br>
+      <button type="submit">Save</button>
+    </form>
+    <script src="options.js"></script>
+  </body>
+</html>
+
