@@ -20,6 +20,43 @@ function getZhuyin(kanji) {
   return zhuyinData.get(kanji) || '';
 }
 
+function injectStyles() {
+  const style = document.createElement('style');
+  style.textContent = `
+    .kanji-highlight {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      vertical-align: middle;
+      margin-right: 0.2em;
+    }
+    .kanji-highlight ruby {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: flex-start;
+      text-align: center;
+    }
+    .kanji-highlight rb {
+      display: inline-block;
+      font-size: 1em;
+      line-height: 1;
+    }
+    .kanji-highlight rt {
+      display: inline-block;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      font-size: 0.4em;
+      line-height: 1;
+      text-align: start;
+      margin-left: 0.1em;
+      color: #666;
+      font-weight: normal;
+      max-height: 1.5em; /* Adjust based on your needs */
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 function highlightKanji(node) {
   if (node.nodeType === Node.TEXT_NODE) {
     const text = node.textContent;
@@ -35,12 +72,17 @@ function highlightKanji(node) {
 
       const kanji = match[0];
       if (!learnedCharacters.has(kanji)) {
+        const span = document.createElement('span');
+        span.className = 'kanji-highlight';
         const ruby = document.createElement('ruby');
-        ruby.textContent = kanji;
+        const rb = document.createElement('rb');
+        rb.textContent = kanji;
+        ruby.appendChild(rb);
         const rt = document.createElement('rt');
         rt.textContent = getZhuyin(kanji);
         ruby.appendChild(rt);
-        fragments.push(ruby);
+        span.appendChild(ruby);
+        fragments.push(span);
       } else {
         fragments.push(document.createTextNode(kanji));
       }
@@ -58,10 +100,11 @@ function highlightKanji(node) {
       fragments.forEach(fragment => container.appendChild(fragment));
       parent.replaceChild(container, node);
     }
-  } else if (node.nodeType === Node.ELEMENT_NODE && !['SCRIPT', 'STYLE', 'TEXTAREA', 'RUBY', 'RT'].includes(node.tagName)) {
+  } else if (node.nodeType === Node.ELEMENT_NODE && !['SCRIPT', 'STYLE', 'TEXTAREA', 'RUBY', 'RT', 'RB'].includes(node.tagName)) {
     Array.from(node.childNodes).forEach(highlightKanji);
   }
 }
+
 
 function updateHighlights() {
   console.log('Updating highlights');
@@ -77,20 +120,6 @@ function updateHighlights() {
     .catch(error => {
       console.error('Error updating highlights:', error);
     });
-}
-
-function injectStyles() {
-  const style = document.createElement('style');
-  style.textContent = `
-    ruby {
-      ruby-position: over;
-    }
-    rt {
-      font-size: 0.7em;
-      color: #666;
-    }
-  `;
-  document.head.appendChild(style);
 }
 
 // Load Zhuyin data and inject styles
