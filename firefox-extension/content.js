@@ -51,7 +51,7 @@ function injectStyles() {
       font-size: 0.3em;
       line-height: normal;
       text-align: start;
-      color: #666;
+      color: inherit;
       font-weight: normal;
     }
     .kanji-highlight.vertical-right {
