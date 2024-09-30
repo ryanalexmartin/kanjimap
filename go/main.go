@@ -104,6 +104,7 @@ func main() {
   mux.HandleFunc("/login", loginHandler)
   mux.HandleFunc("/fetch-characters", fetchAllCharactersHandler)
   mux.HandleFunc("/learn-character", learnCharacter)
+  mux.HandleFunc("/learned-characters", learnedCharactersHandler)
 
 
   var handler http.Handler
@@ -124,7 +125,7 @@ func main() {
     })
     handler = c.Handler(mux)
   }
-  
+
   var port int
   port, err = strconv.Atoi(os.Getenv("VUE_APP_API_PORT"))
   if err != nil {
@@ -226,6 +227,85 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
   json.NewEncoder(w).Encode(jsonResponse)
 
   fmt.Printf("User %v logged in successfully\n", username)
+}
+
+func learnedCharactersHandler(w http.ResponseWriter, r *http.Request) {
+    // Enable CORS for this endpoint
+    w.Header().Set("Access-Control-Allow-Origin", "*")
+    w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+    w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+
+    // Handle preflight request
+    if r.Method == "OPTIONS" {
+        w.WriteHeader(http.StatusOK)
+        return
+    }
+
+    // Ensure the request method is GET
+    if r.Method != "GET" {
+        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        return
+    }
+
+    username := r.URL.Query().Get("username")
+    reqToken := r.Header.Get("Authorization")
+    if reqToken == "" || !strings.HasPrefix(reqToken, "Bearer ") {
+        http.Error(w, "Invalid token format", http.StatusUnauthorized)
+        return
+    }
+    reqToken = strings.TrimPrefix(reqToken, "Bearer ")
+
+    // Verify the token
+    token, err := jwt.Parse(reqToken, func(token *jwt.Token) (interface{}, error) {
+        if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+            return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+        }
+        return []byte(os.Getenv("SECRET_KEY")), nil
+    })
+
+    if err != nil || !token.Valid {
+        http.Error(w, "Invalid token", http.StatusUnauthorized)
+        return
+    }
+
+    // Get user ID
+    var userID int
+    err = db.QueryRow("SELECT id FROM users WHERE username=?", username).Scan(&userID)
+    if err != nil {
+        http.Error(w, "Database error", http.StatusInternalServerError)
+        log.Printf("Database error: %v", err)
+        return
+    }
+
+    // Fetch learned characters
+    rows, err := db.Query(`
+    SELECT c.chinese_character
+    FROM user_character_progress ucp
+    JOIN characters c ON ucp.character_id = c.character_id
+    WHERE ucp.user_id = ? AND ucp.learned = true
+    `, userID)
+    if err != nil {
+        http.Error(w, "Database error", http.StatusInternalServerError)
+        log.Printf("Database error: %v", err)
+        return
+    }
+    defer rows.Close()
+
+    var learnedCharacters []string
+    for rows.Next() {
+        var char string
+        if err := rows.Scan(&char); err != nil {
+            http.Error(w, "Database error", http.StatusInternalServerError)
+            log.Printf("Database error: %v", err)
+            return
+        }
+        learnedCharacters = append(learnedCharacters, char)
+    }
+
+    log.Printf("Fetched %d learned characters for user %s", len(learnedCharacters), username)
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(learnedCharacters)
 }
 
 func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {

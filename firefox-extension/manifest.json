@@ -1,36 +1,25 @@
 {
   "manifest_version": 2,
-  "name": "Kanjimap-Extension",
-  "version": "0.1",
-  "description": "Using the Kanjimap API to automatically highlight unknown kanji on webpages.",
+  "name": "KanjiMap Highlighter",
+  "version": "1.0",
+  "description": "Highlights unknown kanji on webpages based on your KanjiMap progress.",
   "permissions": [
     "activeTab",
-    "http://*/*",
-    "https://*/*",
-    "storage"
+    "storage",
+    "http://localhost:8081/*"
   ],
   "background": {
     "scripts": ["background.js"],
-    "persistent": true
-  },
-  "browser_action": {
-    "default_icon": {
-      "48": "icons/icon-48.png"
-    },
-    "default_title": "Toggle Kanji Highlighter"
+    "persistent": false
   },
   "content_scripts": [
     {
-        "matches": ["http://*/*", "https://*/*"],
-        "js": ["kanji-highlighter.js"]
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
     }
   ],
-  "options_ui": {
-    "page": "options.html",
-    "chrome_style": true
-  },
   "browser_action": {
-    "default_icon": "icons/kanji-48.png",
+    "default_icon": "icon.png",
     "default_popup": "popup.html"
   }
 }

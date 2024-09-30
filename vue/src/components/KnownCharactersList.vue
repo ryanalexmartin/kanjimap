@@ -1,12 +1,9 @@
 <template>
   <div class="known-characters-list">
     <h2>Known Characters</h2>
-    <div class="character-grid">
-      <div v-for="char in knownCharacters" :key="char.id" class="character-item">
+      <ins v-for="char in knownCharacters" :key="char.id">
         {{ char.char }}
-        <!-- <span class="frequency">({{ char.frequency }})</span> -->
-      </div>
-    </div>
+      </ins>
   </div>
 </template>
 
