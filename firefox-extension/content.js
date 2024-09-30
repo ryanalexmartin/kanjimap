@@ -20,38 +20,65 @@ function getZhuyin(kanji) {
   return zhuyinData.get(kanji) || '';
 }
 
+const RUBY_ORIENTATIONS = {
+  VERTICAL_RIGHT: 'vertical-right',
+  HORIZONTAL_ABOVE: 'horizontal-above',
+  HORIZONTAL_BELOW: 'horizontal-below'
+};
+
+let currentOrientation = RUBY_ORIENTATIONS.VERTICAL_RIGHT;
+
 function injectStyles() {
   const style = document.createElement('style');
   style.textContent = `
     .kanji-highlight {
-      display: inline-flex;
-      flex-direction: row;
-      align-items: center;
-      vertical-align: middle;
-      margin-right: 0.2em;
+      display: inline-block;
+      vertical-align: baseline;
+      line-height: normal;
+      position: relative;
     }
     .kanji-highlight ruby {
       display: inline-flex;
-      flex-direction: row;
-      align-items: flex-start;
-      text-align: center;
+      vertical-align: baseline;
+      line-height: 1;
     }
     .kanji-highlight rb {
       display: inline-block;
       font-size: 1em;
-      line-height: 1;
+      line-height: inherit;
     }
     .kanji-highlight rt {
       display: inline-block;
-      writing-mode: vertical-rl;
-      text-orientation: upright;
       font-size: 0.4em;
-      line-height: 1;
+      line-height: normal;
       text-align: start;
-      margin-left: 0.1em;
       color: #666;
       font-weight: normal;
-      max-height: 1.5em; /* Adjust based on your needs */
+    }
+    .kanji-highlight.vertical-right {
+      margin-right: 0.4em;
+    }
+    .kanji-highlight.vertical-right rt {
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      position: absolute;
+      top: 0;
+      right: -1.2em;
+      height: 100%;
+    }
+    .kanji-highlight.horizontal-above rt {
+      position: absolute;
+      top: -0.9em;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+    .kanji-highlight.horizontal-below rt {
+      position: absolute;
+      bottom: -0.9em;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
     }
   `;
   document.head.appendChild(style);
@@ -73,7 +100,7 @@ function highlightKanji(node) {
       const kanji = match[0];
       if (!learnedCharacters.has(kanji)) {
         const span = document.createElement('span');
-        span.className = 'kanji-highlight';
+        span.className = `kanji-highlight ${currentOrientation}`;
         const ruby = document.createElement('ruby');
         const rb = document.createElement('rb');
         rb.textContent = kanji;
@@ -105,6 +132,11 @@ function highlightKanji(node) {
   }
 }
 
+function setRubyOrientation(orientation) {
+  currentOrientation = orientation;
+  browser.storage.local.set({ rubyOrientation: orientation });
+  updateHighlights();
+}
 
 function updateHighlights() {
   console.log('Updating highlights');
@@ -122,13 +154,28 @@ function updateHighlights() {
     });
 }
 
-// Load Zhuyin data and inject styles
-loadZhuyinData().then(() => {
+// Listen for messages from popup
+browser.runtime.onMessage.addListener((message) => {
+  if (message.action === 'setRubyOrientation') {
+    setRubyOrientation(message.orientation);
+  }
   injectStyles();
   updateHighlights();
-}).catch(error => {
-  console.error('Error during initialization:', error);
 });
+
+// Load saved orientation and initialize
+browser.storage.local.get('rubyOrientation').then(result => {
+  if (result.rubyOrientation) {
+    currentOrientation = result.rubyOrientation;
+  }
+  loadZhuyinData().then(() => {
+    injectStyles();
+    updateHighlights();
+  }).catch(error => {
+    console.error('Error during initialization:', error);
+  });
+});
+
 
 // Listen for changes in the DOM
 const observer = new MutationObserver(mutations => {
