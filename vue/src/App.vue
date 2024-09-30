@@ -6,17 +6,13 @@
     <h2>馬丁瑞安創造</h2>
     <a href="https://ryanalexmartin.com">ryanalexmartin.com</a>
     <br />
-    <a href="https://github.com/ryanalexmartin/kanjimap"
-      >github.com/ryanalexmartin/kanjimap</a
-    >
+    <a href="https://github.com/ryanalexmartin/kanjimap">github.com/ryanalexmartin/kanjimap</a>
     <br />
     <br />
     <div>
       Click on a character to mark it as learned. Click again to mark it as
       unlearned. I recommend something like
-      <a href="https://github.com/gkovacs/LiuChanFirefox/tree/firefox"
-        >LiuChan</a
-      >
+      <a href="https://github.com/gkovacs/LiuChanFirefox/tree/firefox">LiuChan</a>
       to help you learn the characters.
       <br />
       點擊一個字符標記為已學。再次點擊標記為未學。
@@ -34,28 +30,29 @@
       <p>歡迎 Welcome, {{ state.username }}!</p>
       <button @click="logout">Logout 登出</button>
       <h1>Learned {{ learnedCount }} out of {{ totalCharacters }}</h1>
+      <!-- Add toggle button for known characters list -->
+      <button @click="toggleKnownCharactersList">
+        {{ showKnownCharactersList ? "Hide" : "Show" }} Known Characters
+      </button>
       <h1>已學 {{ learnedCount }} / {{ totalCharacters }}</h1>
+      <!-- Add KnownCharactersList component -->
+      <KnownCharactersList v-if="showKnownCharactersList" :characters="characters" />
+
 
       <!-- Add sorting dropdown -->
       <div class="sorting-controls">
         <label for="sort-select">Sort by: </label>
-        <select
-          id="sort-select"
-          v-model="state.sortBy"
-          @change="sortCharacters"
-        >
+        <select id="sort-select" v-model="state.sortBy" @change="sortCharacters">
           <option value="default">Default</option>
           <option value="frequency">Frequency</option>
         </select>
       </div>
 
+
       <div class="big-table">
         <div v-for="item in sortedCharacters" :key="item.id">
-          <div
-            class="character-card"
-            :class="{ learned: item.learned }"
-            @click="updateCharacterLearned(item, !item.learned)"
-          >
+          <div class="character-card" :class="{ learned: item.learned }"
+            @click="updateCharacterLearned(item, !item.learned)">
             {{ item.char }}
             <span class="frequency" v-if="state.sortBy === 'frequency'">
               <!-- ({{ item.frequency }}) -->
@@ -65,11 +62,7 @@
       </div>
     </div>
     <div v-else>
-      <LoginView
-        v-if="!state.isRegistering"
-        @login="handleLogin"
-        @register="showRegisterView"
-      />
+      <LoginView v-if="!state.isRegistering" @login="handleLogin" @register="showRegisterView" />
       <RegisterView v-else @registered="showLoginView" />
     </div>
   </div>
@@ -80,11 +73,13 @@ import { ref, onMounted, reactive, computed } from "vue";
 import charactersData from "./data/variant-WordData.json";
 import LoginView from "./components/LoginView.vue";
 import RegisterView from "./components/RegisterView.vue";
+import KnownCharactersList from "./components/KnownCharactersList.vue";
 
 export default {
   components: {
     LoginView,
     RegisterView,
+    KnownCharactersList,
   },
   setup() {
     const state = reactive({
@@ -92,13 +87,21 @@ export default {
       isLoggedIn: localStorage.getItem("token") !== null,
       username: localStorage.getItem("username"),
       passage: "",
-      sortBy: "default",
+      sortBy: "frequency",
     });
+
+    const showKnownCharactersList = ref(false);
+
+    const toggleKnownCharactersList = () => {
+      showKnownCharactersList.value = !showKnownCharactersList.value;
+    };
 
     // Initialize characters as an empty array
     const characters = ref([]);
     const learnedCount = ref(0);
-    const totalCharacters = charactersData.filter(c => c.serial.includes('A')).length;
+    const totalCharacters = charactersData.filter((c) =>
+      c.serial.includes("A")
+    ).length;
 
     // learn all characters in the 'passage' text field
     // get 'passage' via v-model
@@ -129,10 +132,10 @@ export default {
         const response = await fetch(
           `${process.env.VUE_APP_API_URL}:${process.env.VUE_APP_API_PORT}/fetch-characters?username=${username}`,
           {
-            method: 'GET',
+            method: "GET",
             headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
           }
         );
@@ -141,21 +144,21 @@ export default {
         }
         const characterCards = await response.json();
         if (characterCards && Array.isArray(characterCards)) {
-          characters.value = characterCards.map(card => ({
+          characters.value = characterCards.map((card) => ({
             id: card.characterId,
             char: card.character,
             learned: card.learned,
             frequency: card.frequency || 0, // Default to 0 if frequency is not provided
           }));
         } else {
-          console.error('Received invalid data from server:', characterCards);
+          console.error("Received invalid data from server:", characterCards);
           characters.value = [];
         }
       } catch (error) {
-        console.error('Error fetching characters:', error);
+        console.error("Error fetching characters:", error);
         characters.value = [];
       }
-      learnedCount.value = characters.value.filter(c => c.learned).length;
+      learnedCount.value = characters.value.filter((c) => c.learned).length;
     };
 
     const sortCharacters = () => {
@@ -169,10 +172,14 @@ export default {
       }
 
       // Filter characters starting with 'A'
-      const filteredCharacters = characters.value.filter(char => char.id.startsWith('A'));
+      const filteredCharacters = characters.value.filter((char) =>
+        char.id.startsWith("A")
+      );
 
-      if (state.sortBy === 'frequency') {
-        return filteredCharacters.sort((a, b) => (b.frequency || 0) - (a.frequency || 0));
+      if (state.sortBy === "frequency") {
+        return filteredCharacters.sort(
+          (a, b) => (b.frequency || 0) - (a.frequency || 0)
+        );
       } else {
         // Default sorting (by id)
         return filteredCharacters.sort((a, b) => a.id.localeCompare(b.id));
@@ -200,7 +207,6 @@ export default {
     const showLoginView = () => {
       state.isRegistering = false;
     };
-
 
     const updateCharacterLearned = (character, learned) => {
       character.learned = learned;
@@ -252,6 +258,8 @@ export default {
       logout,
       learnFromPassage,
       sortCharacters,
+      showKnownCharactersList,
+      toggleKnownCharactersList,
     };
   },
 };

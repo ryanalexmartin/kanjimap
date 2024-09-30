@@ -4,7 +4,7 @@
     <div class="character-grid">
       <div v-for="char in knownCharacters" :key="char.id" class="character-item">
         {{ char.char }}
-        <span class="frequency">({{ char.frequency }})</span>
+        <!-- <span class="frequency">({{ char.frequency }})</span> -->
       </div>
     </div>
   </div>
