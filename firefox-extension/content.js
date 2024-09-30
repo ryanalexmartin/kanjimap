@@ -1,5 +1,12 @@
+const RUBY_ORIENTATIONS = {
+  VERTICAL_RIGHT: 'vertical-right',
+  HORIZONTAL_ABOVE: 'horizontal-above',
+  HORIZONTAL_BELOW: 'horizontal-below'
+};
 let learnedCharacters = new Set();
 let zhuyinData = new Map();
+let currentOrientation = RUBY_ORIENTATIONS.HORIZONTAL_ABOVE;
+let zhuyinEnabled = 'off';
 
 async function loadZhuyinData() {
   try {
@@ -19,14 +26,6 @@ async function loadZhuyinData() {
 function getZhuyin(kanji) {
   return zhuyinData.get(kanji) || '';
 }
-
-const RUBY_ORIENTATIONS = {
-  VERTICAL_RIGHT: 'vertical-right',
-  HORIZONTAL_ABOVE: 'horizontal-above',
-  HORIZONTAL_BELOW: 'horizontal-below'
-};
-
-let currentOrientation = RUBY_ORIENTATIONS.HORIZONTAL_ABOVE;
 
 function injectStyles() {
   const style = document.createElement('style');
@@ -141,35 +140,84 @@ function setRubyOrientation(orientation) {
   updateHighlights();
 }
 
+function setEnabledZhuyinHighlighting(value) {
+  zhuyinEnabled = value;
+  browser.storage.local.set({ zhuyinEnabled: value });
+  updateHighlights();
+}
+
 function updateHighlights() {
-  console.log('Updating highlights');
-  browser.runtime.sendMessage({ action: 'getLearnedCharacters' })
-    .then(response => {
-      if (response && response.learnedCharacters) {
-        learnedCharacters = new Set(response.learnedCharacters);
-        requestAnimationFrame(() => highlightKanji(document.body));
-      } else {
-        console.error('Failed to get learned characters');
-      }
-    })
-    .catch(error => {
-      console.error('Error updating highlights:', error);
-    });
+  console.log('Updating highlights. Zhuyin enabled:', zhuyinEnabled);
+  removeExistingHighlights();
+  
+  if (zhuyinEnabled === 'on') {
+    browser.runtime.sendMessage({ action: 'getLearnedCharacters' })
+      .then(response => {
+        if (response && response.learnedCharacters) {
+          learnedCharacters = new Set(response.learnedCharacters);
+          requestAnimationFrame(() => highlightKanji(document.body));
+        } else {
+          console.error('Failed to get learned characters');
+        }
+      })
+      .catch(error => {
+        console.error('Error updating highlights:', error);
+      });
+  }
+}
+
+
+function removeExistingHighlights() {
+  console.log('Removing existing highlights');
+  const highlights = document.querySelectorAll('.kanji-highlight');
+  highlights.forEach(highlight => {
+    const parent = highlight.parentNode;
+    while (highlight.firstChild) {
+      parent.insertBefore(highlight.firstChild, highlight);
+    }
+    parent.removeChild(highlight);
+  });
+}
+
+function applySettings(settings) {
+  console.log('Applying settings:', settings);
+  let settingsChanged = false;
+
+  if (settings.rubyOrientation && settings.rubyOrientation !== currentOrientation) {
+    currentOrientation = settings.rubyOrientation;
+    settingsChanged = true;
+    console.log('Updated orientation to:', currentOrientation);
+  }
+
+  if (settings.zhuyinEnabled !== undefined && settings.zhuyinEnabled !== zhuyinEnabled) {
+    zhuyinEnabled = settings.zhuyinEnabled;
+    settingsChanged = true;
+    console.log('Updated Zhuyin enabled to:', zhuyinEnabled);
+  }
+
+  if (settingsChanged) {
+    updateHighlights();
+  }
 }
 
 // Listen for messages from popup
-browser.runtime.onMessage.addListener((message) => {
-  if (message.action === 'setRubyOrientation') {
-    setRubyOrientation(message.orientation);
+browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('Received message:', message);
+  if (message.action === 'updateSettings') {
+    applySettings(message.settings);
+    sendResponse({status: 'Settings updated'});
   }
-  injectStyles();
-  updateHighlights();
+  return true;
 });
 
-// Load saved orientation and initialize
-browser.storage.local.get('rubyOrientation').then(result => {
+// Load saved settings and initialize
+browser.storage.local.get(['rubyOrientation', 'zhuyinEnabled']).then(result => {
+  console.log('Loaded settings:', result);
   if (result.rubyOrientation) {
     currentOrientation = result.rubyOrientation;
+  }
+  if (result.zhuyinEnabled) {
+    zhuyinEnabled = result.zhuyinEnabled;
   }
   loadZhuyinData().then(() => {
     injectStyles();
