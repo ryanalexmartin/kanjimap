@@ -49,7 +49,7 @@ function injectStyles() {
     }
     .kanji-highlight rt {
       display: inline-block;
-      font-size: 0.4em;
+      font-size: 0.3em;
       line-height: normal;
       text-align: start;
       color: #666;
@@ -59,6 +59,9 @@ function injectStyles() {
       margin-right: 0.4em;
     }
     .kanji-highlight.vertical-right rt {
+      display:flex;
+      justify-content:center;
+      align-items:center;
       writing-mode: vertical-rl;
       text-orientation: upright;
       position: absolute;
