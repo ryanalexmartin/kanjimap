@@ -26,7 +26,7 @@ const RUBY_ORIENTATIONS = {
   HORIZONTAL_BELOW: 'horizontal-below'
 };
 
-let currentOrientation = RUBY_ORIENTATIONS.VERTICAL_RIGHT;
+let currentOrientation = RUBY_ORIENTATIONS.HORIZONTAL_ABOVE;
 
 function injectStyles() {
   const style = document.createElement('style');
@@ -71,7 +71,7 @@ function injectStyles() {
     }
     .kanji-highlight.horizontal-above rt {
       position: absolute;
-      top: -0.9em;
+      top: -0.6em;
       left: 50%;
       transform: translateX(-50%);
       white-space: nowrap;
