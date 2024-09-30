@@ -1,0 +1,3 @@
+[submodule "obsidian-extension"]
+	path = obsidian-extension
+	url = https://github.com/ryanalexmartin/kanjimap-obsidian
