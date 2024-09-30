@@ -7,5 +7,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY sql/* .
 
-CMD ["python", "update_characters_table.py"]
-CMD ["python", "import_frequency_data.py"]
+CMD ["./docker-entrypoint.sh"]
