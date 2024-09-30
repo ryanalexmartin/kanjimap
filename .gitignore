@@ -2,3 +2,4 @@ go/.env
 go/pkg/
 mysql/
 .env
+.DS_Store
