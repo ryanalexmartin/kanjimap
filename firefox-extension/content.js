@@ -1,4 +1,24 @@
-let learnedCharacters = [];
+let learnedCharacters = new Set();
+let zhuyinData = new Map();
+
+async function loadZhuyinData() {
+  try {
+    const response = await fetch(browser.runtime.getURL('characters.json'));
+    const data = await response.json();
+    data.forEach(entry => {
+      if (entry.meanings && entry.meanings.length > 0) {
+        zhuyinData.set(entry.word, entry.meanings[0].bopomofo);
+      }
+    });
+    console.log('Zhuyin data loaded successfully');
+  } catch (error) {
+    console.error('Failed to load Zhuyin data:', error);
+  }
+}
+
+function getZhuyin(kanji) {
+  return zhuyinData.get(kanji) || '';
+}
 
 function highlightKanji(node) {
   if (node.nodeType === Node.TEXT_NODE) {
@@ -14,11 +34,13 @@ function highlightKanji(node) {
       }
 
       const kanji = match[0];
-      if (!learnedCharacters.includes(kanji)) {
-        const span = document.createElement('span');
-        span.textContent = kanji;
-        span.style.backgroundColor = 'yellow';
-        fragments.push(span);
+      if (!learnedCharacters.has(kanji)) {
+        const ruby = document.createElement('ruby');
+        ruby.textContent = kanji;
+        const rt = document.createElement('rt');
+        rt.textContent = getZhuyin(kanji);
+        ruby.appendChild(rt);
+        fragments.push(ruby);
       } else {
         fragments.push(document.createTextNode(kanji));
       }
@@ -32,10 +54,11 @@ function highlightKanji(node) {
 
     if (fragments.length > 1) {
       const parent = node.parentNode;
-      fragments.forEach(fragment => parent.insertBefore(fragment, node));
-      parent.removeChild(node);
+      const container = document.createElement('span');
+      fragments.forEach(fragment => container.appendChild(fragment));
+      parent.replaceChild(container, node);
     }
-  } else if (node.nodeType === Node.ELEMENT_NODE && !['SCRIPT', 'STYLE', 'TEXTAREA'].includes(node.tagName)) {
+  } else if (node.nodeType === Node.ELEMENT_NODE && !['SCRIPT', 'STYLE', 'TEXTAREA', 'RUBY', 'RT'].includes(node.tagName)) {
     Array.from(node.childNodes).forEach(highlightKanji);
   }
 }
@@ -44,10 +67,9 @@ function updateHighlights() {
   console.log('Updating highlights');
   browser.runtime.sendMessage({ action: 'getLearnedCharacters' })
     .then(response => {
-      console.log('Received response:', response);
       if (response && response.learnedCharacters) {
-        learnedCharacters = response.learnedCharacters;
-        highlightKanji(document.body);
+        learnedCharacters = new Set(response.learnedCharacters);
+        requestAnimationFrame(() => highlightKanji(document.body));
       } else {
         console.error('Failed to get learned characters');
       }
@@ -57,13 +79,36 @@ function updateHighlights() {
     });
 }
 
-// Initial highlighting
-updateHighlights();
+function injectStyles() {
+  const style = document.createElement('style');
+  style.textContent = `
+    ruby {
+      ruby-position: over;
+    }
+    rt {
+      font-size: 0.7em;
+      color: #666;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// Load Zhuyin data and inject styles
+loadZhuyinData().then(() => {
+  injectStyles();
+  updateHighlights();
+}).catch(error => {
+  console.error('Error during initialization:', error);
+});
 
 // Listen for changes in the DOM
 const observer = new MutationObserver(mutations => {
   mutations.forEach(mutation => {
-    mutation.addedNodes.forEach(highlightKanji);
+    mutation.addedNodes.forEach(node => {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        requestAnimationFrame(() => highlightKanji(node));
+      }
+    });
   });
 });
 

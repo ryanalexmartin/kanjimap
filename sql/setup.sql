@@ -10,6 +10,17 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255)
 );
 
+CREATE TABLE IF NOT EXISTS user_tokens (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    token VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX idx_user_id ON user_tokens (user_id);
+CREATE INDEX idx_token ON user_tokens (token);
+
 CREATE TABLE characters (
     character_id VARCHAR(255),
     chinese_character VARCHAR(255),
