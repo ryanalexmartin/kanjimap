@@ -177,120 +177,99 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
-  username := r.FormValue("username")
-  password := r.FormValue("password")
-  var user User
-  var tokenString string
+    username := r.FormValue("username")
+    password := r.FormValue("password")
+    var user User
+    var tokenString string
 
-  log.Printf("Login attempt for user: %s", username)
+    log.Printf("Login attempt for user: %s", username)
 
-  row := db.QueryRow("SELECT id, username, password FROM users WHERE username=?", username)
+    row := db.QueryRow("SELECT id, username, password FROM users WHERE username=?", username)
 
-  err := row.Scan(&user.ID, &user.Username, &user.Password)
-  if err != nil {
-    log.Printf("Invalid username for: %s, error: %v", username, err)
-    http.Error(w, "Invalid username", http.StatusUnauthorized)
-    return
-  }
+    err := row.Scan(&user.ID, &user.Username, &user.Password)
+    if err != nil {
+        log.Printf("Invalid username for: %s, error: %v", username, err)
+        http.Error(w, "Invalid username", http.StatusUnauthorized)
+        return
+    }
 
-  if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-    log.Printf("Invalid password for user: %s", username)
-    http.Error(w, "Invalid password", http.StatusUnauthorized)
-    return
-  }
+    if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+        log.Printf("Invalid password for user: %s", username)
+        http.Error(w, "Invalid password", http.StatusUnauthorized)
+        return
+    }
 
-  // Create a new token
-  token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-    "username": username,
-    "exp":      time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
-  })
+    // Create a new token
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+        "username": username,
+        "exp":      time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
+    })
 
-  tokenString, err = token.SignedString([]byte(os.Getenv("SECRET_KEY")))
-  if err != nil {
-    log.Printf("Unable to sign token for user: %s, error: %v", username, err)
-    http.Error(w, "Unable to sign token", http.StatusInternalServerError)
-    return
-  }
+    tokenString, err = token.SignedString([]byte(os.Getenv("SECRET_KEY")))
+    if err != nil {
+        log.Printf("Unable to sign token for user: %s, error: %v", username, err)
+        http.Error(w, "Unable to sign token", http.StatusInternalServerError)
+        return
+    }
 
-  // Store the new token
-  result, err := db.Exec("INSERT INTO user_tokens (user_id, token) VALUES (?, ?)", user.ID, tokenString)
-  if err != nil {
-    log.Printf("Failed to store token for user: %s, error: %v", username, err)
-    http.Error(w, "Database error", http.StatusInternalServerError)
-    return
-  }
+    // Store the new token
+    result, err := db.Exec("INSERT INTO user_tokens (user_id, token) VALUES (?, ?)", user.ID, tokenString)
+    if err != nil {
+        log.Printf("Failed to store token for user: %s, error: %v", username, err)
+        http.Error(w, "Database error", http.StatusInternalServerError)
+        return
+    }
 
-  rowsAffected, _ := result.RowsAffected()
-  log.Printf("Token stored for user: %s, rows affected: %d", username, rowsAffected)
-
-  // Rotate tokens (keep only the 5 most recent tokens)
-  result, err = db.Exec(`
-  DELETE FROM user_tokens 
-  WHERE user_id = ? AND id NOT IN (
-    SELECT id FROM (
-      SELECT id FROM user_tokens 
-      WHERE user_id = ? 
-      ORDER BY created_at DESC 
-      LIMIT 5
-    ) AS t
-  )
-  `, user.ID, user.ID)
-  if err != nil {
-    log.Printf("Error rotating tokens for user: %s, error: %v", username, err)
-  } else {
     rowsAffected, _ := result.RowsAffected()
-    log.Printf("Token rotation completed for user: %s, rows deleted: %d", username, rowsAffected)
-  }
+    log.Printf("Token stored for user: %s, rows affected: %d", username, rowsAffected)
 
-  // Return the token
-  type JsonResponse struct {
-    Token string `json:"token"`
-  }
-  jsonResponse := JsonResponse{Token: tokenString}
-  w.Header().Set("Content-Type", "application/json")
-  json.NewEncoder(w).Encode(jsonResponse)
+    // Return the token
+    type JsonResponse struct {
+        Token string `json:"token"`
+    }
+    jsonResponse := JsonResponse{Token: tokenString}
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(jsonResponse)
 
-  log.Printf("User %s logged in successfully", username)
+    log.Printf("User %s logged in successfully", username)
 }
-
-
-
 
 func validateToken(tokenString string) (*jwt.Token, error) {
-  token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-    if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-      return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-    }
-    return []byte(os.Getenv("SECRET_KEY")), nil
-  })
+    token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+        if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+            return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+        }
+        return []byte(os.Getenv("SECRET_KEY")), nil
+    })
 
-  if err != nil {
-    return nil, err
-  }
-
-  if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-    // Check if the token exists in the database
-    var count int
-    err := db.QueryRow("SELECT COUNT(*) FROM user_tokens WHERE token = ?", tokenString).Scan(&count)
     if err != nil {
-      return nil, err
-    }
-    if count == 0 {
-      return nil, fmt.Errorf("token not found in database")
+        return nil, err
     }
 
-    // Check expiration
-    if exp, ok := claims["exp"].(float64); ok {
-      if time.Now().Unix() > int64(exp) {
-        return nil, fmt.Errorf("token expired")
-      }
+    if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+        // Check if the token exists in the database
+        var count int
+        err := db.QueryRow("SELECT COUNT(*) FROM user_tokens WHERE token = ?", tokenString).Scan(&count)
+        if err != nil {
+            return nil, err
+        }
+        if count == 0 {
+            return nil, fmt.Errorf("token not found in database")
+        }
+
+        // Check expiration
+        if exp, ok := claims["exp"].(float64); ok {
+            if time.Now().Unix() > int64(exp) {
+                return nil, fmt.Errorf("token expired")
+            }
+        }
+
+        return token, nil
     }
 
-    return token, nil
-  }
-
-  return nil, fmt.Errorf("invalid token")
+    return nil, fmt.Errorf("invalid token")
 }
+
 
 func learnedCharactersHandler(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -474,6 +453,14 @@ func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
 
   w.Header().Set("Content-Type", "application/json")
   json.NewEncoder(w).Encode(characterCards)
+}
+
+// TODO call this function periodically
+func cleanupExpiredTokens() {
+    _, err := db.Exec("DELETE FROM user_tokens WHERE created_at < ?", time.Now().Add(-24*time.Hour))
+    if err != nil {
+        log.Printf("Error cleaning up expired tokens: %v", err)
+    }
 }
 
 func learnCharacter(w http.ResponseWriter, r *http.Request) {
