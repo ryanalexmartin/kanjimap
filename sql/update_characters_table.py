@@ -1,5 +1,6 @@
 import json
 import mysql.connector
+import os
 
 
 class Character:
@@ -8,11 +9,11 @@ class Character:
         self.word = word
 
 
-# Connect to MySQL server (note: not specifying a database)
 db = mysql.connector.connect(
-    host="localhost",
-    user="user",
-    password="password"
+    host=os.environ.get('MYSQL_HOST', 'db'),
+    user=os.environ.get('MYSQL_USER', 'user'),
+    password=os.environ.get('MYSQL_PASSWORD', 'password'),
+    database=os.environ.get('MYSQL_DATABASE', 'kanjimap')
 )
 
 cursor = db.cursor()
@@ -20,8 +21,6 @@ cursor = db.cursor()
 # Create database if it doesn't exist
 cursor.execute("CREATE DATABASE IF NOT EXISTS kanjimap")
 cursor.execute("USE kanjimap")
-
-# Create tables
 
 # Create tables
 cursor.execute("""

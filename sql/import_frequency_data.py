@@ -104,7 +104,7 @@ def import_frequency_data(file_path, db_config):
 
 # Database configuration
 db_config = {
-    "host": "localhost",
+    "host": "db",
     "user": "user",
     "password": "password",
     "database": "kanjimap",

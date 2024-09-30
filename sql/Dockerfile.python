@@ -1,0 +1,11 @@
+FROM python:3.9
+
+WORKDIR /app
+
+COPY sql/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY sql/* .
+
+CMD ["python", "update_characters_table.py"]
+CMD ["python", "import_frequency_data.py"]

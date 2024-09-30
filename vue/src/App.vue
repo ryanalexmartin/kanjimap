@@ -58,7 +58,7 @@
           >
             {{ item.char }}
             <span class="frequency" v-if="state.sortBy === 'frequency'">
-              ({{ item.frequency }})
+              <!-- ({{ item.frequency }}) -->
             </span>
           </div>
         </div>

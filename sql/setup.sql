@@ -1,12 +1,13 @@
 CREATE DATABASE IF NOT EXISTS kanjimap;
-USE kanjimap;
+GRANT ALL PRIVILEGES ON kanjimap.* TO 'user'@'%';
+FLUSH PRIVILEGES;
 
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(255) NOT NULL,
     password VARCHAR(255) NOT NULL,
     token VARCHAR(255),
-    email VARCHAR(255),
+    email VARCHAR(255)
 );
 
 CREATE TABLE characters (

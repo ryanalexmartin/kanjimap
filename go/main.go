@@ -10,7 +10,7 @@ import (
   "strconv"
   "strings"
   "time"
-  "github.com/joho/godotenv"
+  "path/filepath"
 
   _ "github.com/go-sql-driver/mysql"
 
@@ -46,19 +46,15 @@ type CharacterCard struct {
 }
 
 func main() {
+  dbHost := os.Getenv("DB_HOST")
+  dbUser := os.Getenv("DB_USER")
+  dbPassword := os.Getenv("DB_PASSWORD")
+  dbName := os.Getenv("DB_NAME")
+  // secretKey := os.Getenv("SECRET_KEY") // todo - convert this to variable
+
+  dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s", dbUser, dbPassword, dbHost, dbName)
   var err error
-  // set env vars from .env file
-  err = godotenv.Load("../vue/.env")
-  if err != nil {
-    log.Fatal("Error loading .env file")
-  }
-
-  // check if the secret key is set
-  if os.Getenv("SECRET_KEY") == "" {
-    log.Fatal("SECRET_KEY environment variable not set")
-  }
-
-  db, err = sql.Open("mysql", "user:password@/kanjimap")
+  db, err = sql.Open("mysql", dsn)
   if err != nil {
     log.Fatal(err)
   }
@@ -69,19 +65,46 @@ func main() {
     log.Fatal("Unable to connect to MySQL server or database does not exist: ", err)
   }
 
-  fs := http.FileServer(http.Dir("../vue/dist"))
+  // Test the database connection
+  err = db.Ping()
+  if err != nil {
+    log.Fatalf("Unable to connect to MySQL server: %v", err)
+  }
+  log.Println("Successfully connected to the database")
+
+  log.Println("Now let's try to initialize our frontend.")
+
+  // Check if the frontend directory exists
+  frontendDir := "/vue/dist"
+  if _, err := os.Stat(frontendDir); os.IsNotExist(err) {
+    log.Fatalf("Frontend directory does not exist: %v", err)
+  }
+
+  // Check if the index.html file exists
+  indexPath := filepath.Join(frontendDir, "index.html")
+  if _, err := os.Stat(indexPath); os.IsNotExist(err) {
+    log.Fatalf("index.html not found in frontend directory: %v", err)
+  }
+
+  // Create the file server
+  fs := http.FileServer(http.Dir(frontendDir))
+
+  // Wrap the file server with a handler that logs requests
+  loggedFs := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    log.Printf("Serving file: %s", r.URL.Path)
+    fs.ServeHTTP(w, r)
+  })
+
+  // Determine if we're in a local development environment
+  isLocalDev := os.Getenv("VUE_APP_API_URL") == "http://localhost"
 
   mux := http.NewServeMux()
+  mux.Handle("/", loggedFs)
   mux.HandleFunc("/register", registerHandler)
   mux.HandleFunc("/login", loginHandler)
   mux.HandleFunc("/fetch-characters", fetchAllCharactersHandler)
   mux.HandleFunc("/learn-character", learnCharacter)
 
-  // serve the frontend
-  mux.Handle("/", fs)
-
-  // Determine if we're in a local development environment
-  isLocalDev := os.Getenv("VUE_APP_API_URL") == "http://localhost"
 
   var handler http.Handler
   if isLocalDev {

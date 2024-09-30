@@ -1,32 +1,75 @@
-version: '3.1'
+version: '3.8'
 
 services:
+
   db:
-    image: mysql:8.0
-    command: --default-authentication-plugin=mysql_native_password
-    restart: always
+    build: ./sql
+    ports:
+      - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: kanjimap
       MYSQL_USER: user
       MYSQL_PASSWORD: password
     volumes:
-      - ./sql:/docker-entrypoint-initdb.d
-      - ./mysql:/var/lib/mysql
-        #    ports:
-        #      - 3306:3306
-  app:
-    image: golang:1.22.3-bookworm
-    restart: always
-    environment:
-      SECRET_KEY: hello
-    ports:
-      - 8080:8080
+      - ./mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  python_script:
     volumes:
-      - ./vue:/vue
-      - ./go:/go
-    command: ["/usr/local/go/bin/go", "run", "/go/main.go"] 
-      #command: ["tail", "-f", "/dev/null"]
+      - ./sql:/docker-entrypoint-initdb.d
+    build:
+      context: .
+      dockerfile: sql/Dockerfile.python
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - MYSQL_HOST=db
+      - MYSQL_USER=user
+      - MYSQL_PASSWORD=password
+      - MYSQL_DATABASE=kanjimap
 
+  app:
+    build: 
+      context: ./go
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      DB_HOST: db
+      DB_USER: user
+      DB_PASSWORD: password
+      DB_NAME: kanjimap
+      VUE_APP_API_URL: http://localhost
+      VUE_APP_API_PORT: 8081
+      SECRET_KEY: hello
+    volumes:
+      - ./vue/:/vue/
+      - ./go/:/go
+    depends_on:
+      db:
+        condition: service_healthy
 
-      
+  # frontend:
+  #   build: ./vue
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     VUE_APP_URL: http://localhost
+  #     VUE_APP_PORT: 8080
+  #     VUE_APP_API_URL: http://localhost
+  #     VUE_APP_API_PORT: 8081
+  #   depends_on:
+  #     - app
+
+volumes:
+  mysql_data:
+
+networks:
+  default:
+    driver: bridge
+
