@@ -53,7 +53,6 @@ async function fetchLearnedCharacters() {
   }
 }
 
-// Listen for messages from content script
 browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Received message in background:', request);
   if (request.action === 'getLearnedCharacters') {
@@ -62,8 +61,21 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
       sendResponse({ learnedCharacters: learnedCharacters });
     });
     return true; // Indicates that we will send a response asynchronously
+  } else if (request.action === 'updateSettings') {
+    // Relay the settings update to all content scripts
+    browser.tabs.query({}).then((tabs) => {
+      for (let tab of tabs) {
+        browser.tabs.sendMessage(tab.id, {
+          action: 'updateSettings',
+          settings: request.settings
+        }).catch((error) => console.log(`Error sending message to tab ${tab.id}:`, error));
+      }
+    });
+    sendResponse({ status: 'Settings update relayed to content scripts' });
+    return true;
   }
 });
+
 
 // Initial fetch on extension load
 fetchLearnedCharacters();

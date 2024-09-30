@@ -42,17 +42,16 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   orientationSelect.addEventListener('change', (event) => {
+    console.log("orientation changed")
     const orientation = event.target.value;
     updateOrientation(orientation);
   });
 
   function updateOrientation(orientation) {
     browser.storage.local.set({ rubyOrientation: orientation });
-    browser.tabs.query({active: true, currentWindow: true}).then((tabs) => {
-      browser.tabs.sendMessage(tabs[0].id, {
-        action: 'updateSettings',
-        settings: { rubyOrientation: orientation }
-      });
+    browser.runtime.sendMessage({
+      action: 'updateSettings',
+      settings: { rubyOrientation: orientation }
     });
   }
 
@@ -80,15 +79,11 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateZhuyinState(enabled) {
     const zhuyinState = enabled ? 'on' : 'off';
     browser.storage.local.set({ zhuyinEnabled: zhuyinState });
-    browser.tabs.query({active: true, currentWindow: true}).then((tabs) => {
-      browser.tabs.sendMessage(tabs[0].id, {
-        action: 'updateSettings',
-        settings: { zhuyinEnabled: zhuyinState }
-      });
+    browser.runtime.sendMessage({
+      action: 'updateSettings',
+      settings: { zhuyinEnabled: zhuyinState }
     });
   }
-
-
 
   logoutBtn.addEventListener('click', function() {
     browser.storage.local.remove(['authToken', 'username', 'password']).then(() => {
