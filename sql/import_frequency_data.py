@@ -3,6 +3,8 @@ import csv
 import mysql.connector
 from mysql.connector import Error
 
+debug = False
+
 
 def import_frequency_data(file_path, db_config):
     try:
@@ -15,14 +17,14 @@ def import_frequency_data(file_path, db_config):
 
         # Prepare the update statement
         update_query = """
-        UPDATE character_metadata 
+        UPDATE character_metadata
         SET frequency = %s, cumulative_frequency = %s, pinyin = %s, english = %s
         WHERE chinese_character = %s
         """
 
         # Prepare the insert statement (we'll use this only for existing characters not yet in character_metadata)
         insert_query = """
-        INSERT INTO character_metadata 
+        INSERT INTO character_metadata
         (chinese_character, frequency, cumulative_frequency, pinyin, english)
         VALUES (%s, %s, %s, %s, %s)
         """
@@ -72,26 +74,26 @@ def import_frequency_data(file_path, db_config):
                     updated_count += 1
                 else:
                     skipped_count += 1
-                    print(
-                        f"Character '{character}' not found in characters table. Skipping."
-                    )
+                    if debug:
+                        print(f"Character '{character}' not found in characters table. Skipping.")
 
         connection.commit()
-        print(
-            f"Data import completed. Updated {updated_count} characters. Skipped {skipped_count} characters."
-        )
+        if debug:
+            print(f"Data import completed. Updated {updated_count} characters. Skipped {skipped_count} characters.")
 
         # Verify the import
         cursor.execute("SELECT COUNT(*) FROM character_metadata")
         count = cursor.fetchone()[0]
-        print(f"Total records in character_metadata: {count}")
+        if debug:
+            print(f"Total records in character_metadata: {count}")
 
-        cursor.execute(
-            "SELECT chinese_character, frequency FROM character_metadata ORDER BY frequency DESC LIMIT 5"
-        )
-        print("Top 5 most frequent characters:")
-        for row in cursor.fetchall():
-            print(row)
+        if debug:
+            cursor.execute(
+                "SELECT chinese_character, frequency FROM character_metadata ORDER BY frequency DESC LIMIT 5"
+            )
+            print("Top 5 most frequent characters:")
+            for row in cursor.fetchall():
+                print(row)
 
     except Error as e:
         print(f"Error: {e}")
