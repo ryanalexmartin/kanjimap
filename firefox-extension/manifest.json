@@ -6,7 +6,8 @@
   "permissions": [
     "activeTab",
     "storage",
-    "http://localhost:8081/*"
+    "http://localhost:8081/*",
+    "http://kanjimap.cargocult.tech/*"
   ],
   "background": {
     "scripts": ["background.js"],

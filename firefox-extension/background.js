@@ -38,6 +38,7 @@ async function fetchLearnedCharacters() {
 
   try {
     const { username } = await browser.storage.local.get('username');
+    // TODO - support both localhost (dev) and cargocult (prod)
     const response = await fetch(`http://localhost:8081/learned-characters?username=${username}`, {
       headers: { 'Authorization': `Bearer ${authToken}` }
     });
