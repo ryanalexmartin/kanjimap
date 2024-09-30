@@ -9,9 +9,9 @@ services:
       DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
-      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - ./mysql-data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 20s
@@ -42,7 +42,7 @@ services:
       DB_HOST: db
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
-      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_PASSWORD: ${DB_PASSWORD}
       VUE_APP_URL: ${VUE_APP_URL}
       VUE_APP_PORT: ${VUE_APP_PORT}
       VUE_APP_API_URL: ${VUE_APP_API_URL}
