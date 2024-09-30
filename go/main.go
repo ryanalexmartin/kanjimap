@@ -177,210 +177,200 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
-    username := r.FormValue("username")
-    password := r.FormValue("password")
-    var user User
-    var tokenString string
+  username := r.FormValue("username")
+  password := r.FormValue("password")
+  var user User
+  var tokenString string
 
-    log.Printf("Login attempt for user: %s", username)
+  log.Printf("Login attempt for user: %s", username)
 
-    row := db.QueryRow("SELECT id, username, password FROM users WHERE username=?", username)
+  row := db.QueryRow("SELECT id, username, password FROM users WHERE username=?", username)
 
-    err := row.Scan(&user.ID, &user.Username, &user.Password)
-    if err != nil {
-        log.Printf("Invalid username for: %s, error: %v", username, err)
-        http.Error(w, "Invalid username", http.StatusUnauthorized)
-        return
-    }
+  err := row.Scan(&user.ID, &user.Username, &user.Password)
+  if err != nil {
+    log.Printf("Invalid username for: %s, error: %v", username, err)
+    http.Error(w, "Invalid username", http.StatusUnauthorized)
+    return
+  }
 
-    if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-        log.Printf("Invalid password for user: %s", username)
-        http.Error(w, "Invalid password", http.StatusUnauthorized)
-        return
-    }
+  if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+    log.Printf("Invalid password for user: %s", username)
+    http.Error(w, "Invalid password", http.StatusUnauthorized)
+    return
+  }
 
-    // Create a new token
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-        "username": username,
-        "exp":      time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
-    })
+  // Create a new token
+  token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+    "username": username,
+    "exp":      time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
+  })
 
-    tokenString, err = token.SignedString([]byte(os.Getenv("SECRET_KEY")))
-    if err != nil {
-        log.Printf("Unable to sign token for user: %s, error: %v", username, err)
-        http.Error(w, "Unable to sign token", http.StatusInternalServerError)
-        return
-    }
+  tokenString, err = token.SignedString([]byte(os.Getenv("SECRET_KEY")))
+  if err != nil {
+    log.Printf("Unable to sign token for user: %s, error: %v", username, err)
+    http.Error(w, "Unable to sign token", http.StatusInternalServerError)
+    return
+  }
 
-    // Store the new token
-    result, err := db.Exec("INSERT INTO user_tokens (user_id, token) VALUES (?, ?)", user.ID, tokenString)
-    if err != nil {
-        log.Printf("Failed to store token for user: %s, error: %v", username, err)
-        http.Error(w, "Database error", http.StatusInternalServerError)
-        return
-    }
+  // Store the new token
+  result, err := db.Exec("INSERT INTO user_tokens (user_id, token) VALUES (?, ?)", user.ID, tokenString)
+  if err != nil {
+    log.Printf("Failed to store token for user: %s, error: %v", username, err)
+    http.Error(w, "Database error", http.StatusInternalServerError)
+    return
+  }
 
+  rowsAffected, _ := result.RowsAffected()
+  log.Printf("Token stored for user: %s, rows affected: %d", username, rowsAffected)
+
+  // Rotate tokens (keep only the 5 most recent tokens)
+  result, err = db.Exec(`
+  DELETE FROM user_tokens 
+  WHERE user_id = ? AND id NOT IN (
+    SELECT id FROM (
+      SELECT id FROM user_tokens 
+      WHERE user_id = ? 
+      ORDER BY created_at DESC 
+      LIMIT 5
+    ) AS t
+  )
+  `, user.ID, user.ID)
+  if err != nil {
+    log.Printf("Error rotating tokens for user: %s, error: %v", username, err)
+  } else {
     rowsAffected, _ := result.RowsAffected()
-    log.Printf("Token stored for user: %s, rows affected: %d", username, rowsAffected)
+    log.Printf("Token rotation completed for user: %s, rows deleted: %d", username, rowsAffected)
+  }
 
-    // Rotate tokens (keep only the 5 most recent tokens)
-    result, err = db.Exec(`
-        DELETE FROM user_tokens 
-        WHERE user_id = ? AND id NOT IN (
-            SELECT id FROM (
-                SELECT id FROM user_tokens 
-                WHERE user_id = ? 
-                ORDER BY created_at DESC 
-                LIMIT 5
-            ) AS t
-        )
-    `, user.ID, user.ID)
-    if err != nil {
-        log.Printf("Error rotating tokens for user: %s, error: %v", username, err)
-    } else {
-        rowsAffected, _ := result.RowsAffected()
-        log.Printf("Token rotation completed for user: %s, rows deleted: %d", username, rowsAffected)
-    }
+  // Return the token
+  type JsonResponse struct {
+    Token string `json:"token"`
+  }
+  jsonResponse := JsonResponse{Token: tokenString}
+  w.Header().Set("Content-Type", "application/json")
+  json.NewEncoder(w).Encode(jsonResponse)
 
-    // Return the token
-    type JsonResponse struct {
-        Token string `json:"token"`
-    }
-    jsonResponse := JsonResponse{Token: tokenString}
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(jsonResponse)
-
-    log.Printf("User %s logged in successfully", username)
+  log.Printf("User %s logged in successfully", username)
 }
 
 
 
 
 func validateToken(tokenString string) (*jwt.Token, error) {
-    token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-        if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-            return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-        }
-        return []byte(os.Getenv("SECRET_KEY")), nil
-    })
+  token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+    if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+      return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+    }
+    return []byte(os.Getenv("SECRET_KEY")), nil
+  })
 
+  if err != nil {
+    return nil, err
+  }
+
+  if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+    // Check if the token exists in the database
+    var count int
+    err := db.QueryRow("SELECT COUNT(*) FROM user_tokens WHERE token = ?", tokenString).Scan(&count)
     if err != nil {
-        return nil, err
+      return nil, err
+    }
+    if count == 0 {
+      return nil, fmt.Errorf("token not found in database")
     }
 
-    if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-        // Check if the token exists in the database
-        var count int
-        err := db.QueryRow("SELECT COUNT(*) FROM user_tokens WHERE token = ?", tokenString).Scan(&count)
-        if err != nil {
-            return nil, err
-        }
-        if count == 0 {
-            return nil, fmt.Errorf("token not found in database")
-        }
-
-        // Check expiration
-        if exp, ok := claims["exp"].(float64); ok {
-            if time.Now().Unix() > int64(exp) {
-                return nil, fmt.Errorf("token expired")
-            }
-        }
-
-        return token, nil
+    // Check expiration
+    if exp, ok := claims["exp"].(float64); ok {
+      if time.Now().Unix() > int64(exp) {
+        return nil, fmt.Errorf("token expired")
+      }
     }
 
-    return nil, fmt.Errorf("invalid token")
+    return token, nil
+  }
+
+  return nil, fmt.Errorf("invalid token")
 }
 
 func learnedCharactersHandler(w http.ResponseWriter, r *http.Request) {
-    log.Println("learnedCharactersHandler called")
+  w.Header().Set("Access-Control-Allow-Origin", "*")
+  w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+  w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 
-    // Enable CORS for this endpoint
-    w.Header().Set("Access-Control-Allow-Origin", "*")
-    w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-    w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
+  if r.Method == "OPTIONS" {
+    w.WriteHeader(http.StatusOK)
+    return
+  }
 
-    // Handle preflight request
-    if r.Method == "OPTIONS" {
-        w.WriteHeader(http.StatusOK)
-        return
+  if r.Method != "GET" {
+    log.Printf("Invalid method: %s", r.Method)
+    http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+    return
+  }
+
+  username := r.URL.Query().Get("username")
+
+  reqToken := r.Header.Get("Authorization")
+  if reqToken == "" || !strings.HasPrefix(reqToken, "Bearer ") {
+    http.Error(w, "Invalid token format", http.StatusUnauthorized)
+    return
+  }
+  reqToken = strings.TrimPrefix(reqToken, "Bearer ")
+
+  token, err := validateToken(reqToken)
+  if err != nil {
+    http.Error(w, "Invalid token", http.StatusUnauthorized)
+    log.Printf("Token validation failed: %v", err)
+    return
+  }
+
+  claims, ok := token.Claims.(jwt.MapClaims)
+  if !ok {
+    http.Error(w, "Invalid token claims", http.StatusUnauthorized)
+    return
+  }
+  tokenUsername, ok := claims["username"].(string)
+  if !ok || tokenUsername != username {
+    http.Error(w, "Username mismatch", http.StatusUnauthorized)
+    return
+  }
+
+  // Get user ID
+  var userID int
+  err = db.QueryRow("SELECT id FROM users WHERE username=?", username).Scan(&userID)
+  if err != nil {
+    http.Error(w, "Database error", http.StatusInternalServerError)
+    log.Printf("Database error: %v", err)
+    return
+  }
+
+  // Fetch learned characters
+  rows, err := db.Query(`
+  SELECT c.chinese_character
+  FROM user_character_progress ucp
+  JOIN characters c ON ucp.character_id = c.character_id
+  WHERE ucp.user_id = ? AND ucp.learned = true
+  `, userID)
+  if err != nil {
+    http.Error(w, "Database error", http.StatusInternalServerError)
+    log.Printf("Database error: %v", err)
+    return
+  }
+  defer rows.Close()
+
+  var learnedCharacters []string
+  for rows.Next() {
+    var char string
+    if err := rows.Scan(&char); err != nil {
+      http.Error(w, "Database error", http.StatusInternalServerError)
+      log.Printf("Database error: %v", err)
+      return
     }
+    learnedCharacters = append(learnedCharacters, char)
+  }
 
-    // Ensure the request method is GET
-    if r.Method != "GET" {
-        log.Printf("Invalid method: %s", r.Method)
-        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-        return
-    }
-
-    username := r.URL.Query().Get("username")
-    log.Printf("Received request for username: %s", username)
-
-    reqToken := r.Header.Get("Authorization")
-    if reqToken == "" || !strings.HasPrefix(reqToken, "Bearer ") {
-        http.Error(w, "Invalid token format", http.StatusUnauthorized)
-        return
-    }
-    reqToken = strings.TrimPrefix(reqToken, "Bearer ")
-
-    // Validate the token
-    token, err := validateToken(reqToken)
-    if err != nil {
-        http.Error(w, "Invalid token", http.StatusUnauthorized)
-        log.Printf("Token validation failed: %v", err)
-        return
-    }
-
-    // Extract username from token
-    claims, ok := token.Claims.(jwt.MapClaims)
-    if !ok {
-        http.Error(w, "Invalid token claims", http.StatusUnauthorized)
-        return
-    }
-    tokenUsername, ok := claims["username"].(string)
-    if !ok || tokenUsername != username {
-        http.Error(w, "Username mismatch", http.StatusUnauthorized)
-        return
-    }
-
-    // Get user ID
-    var userID int
-    err = db.QueryRow("SELECT id FROM users WHERE username=?", username).Scan(&userID)
-    if err != nil {
-        http.Error(w, "Database error", http.StatusInternalServerError)
-        log.Printf("Database error: %v", err)
-        return
-    }
-
-    // Fetch learned characters
-    rows, err := db.Query(`
-    SELECT c.chinese_character
-    FROM user_character_progress ucp
-    JOIN characters c ON ucp.character_id = c.character_id
-    WHERE ucp.user_id = ? AND ucp.learned = true
-    `, userID)
-    if err != nil {
-        http.Error(w, "Database error", http.StatusInternalServerError)
-        log.Printf("Database error: %v", err)
-        return
-    }
-    defer rows.Close()
-
-    var learnedCharacters []string
-    for rows.Next() {
-        var char string
-        if err := rows.Scan(&char); err != nil {
-            http.Error(w, "Database error", http.StatusInternalServerError)
-            log.Printf("Database error: %v", err)
-            return
-        }
-        learnedCharacters = append(learnedCharacters, char)
-    }
-
-    log.Printf("Fetched %d learned characters for user %s", len(learnedCharacters), username)
-
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(learnedCharacters)
+  w.Header().Set("Content-Type", "application/json")
+  json.NewEncoder(w).Encode(learnedCharacters)
 }
 
 
@@ -391,30 +381,15 @@ func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
     http.Error(w, "Invalid token format", http.StatusUnauthorized)
     return
   }
-  reqToken = reqToken[7:] // remove "Bearer " from the token
+  reqToken = strings.TrimPrefix(reqToken, "Bearer ")
 
-  // Check if jwt matches the one in the database 
-  var tokenString string
-  err := db.QueryRow("SELECT token FROM users WHERE username=?", username).Scan(&tokenString)
+  // Validate the token
+  token, err := validateToken(reqToken)
   if err != nil {
     http.Error(w, "Invalid token", http.StatusUnauthorized)
-    fmt.Println("Invalid token", err)
+    log.Printf("Token validation failed: %v", err)
     return
   }
-
-  if reqToken != tokenString {
-    http.Error(w, "Invalid token", http.StatusUnauthorized)
-    fmt.Println("Invalid token: token mismatch")
-    return
-  }
-
-    // Validate the token
-    token, err := validateToken(reqToken)
-    if err != nil {
-        http.Error(w, "Invalid token", http.StatusUnauthorized)
-        log.Printf("Token validation failed: %v", err)
-        return
-    }
 
   if err != nil {
     http.Error(w, "Invalid token", http.StatusUnauthorized)
@@ -445,7 +420,6 @@ func fetchAllCharactersHandler(w http.ResponseWriter, r *http.Request) {
     return
   }
 
-  // Update the query to use the new schema
   rows, err := db.Query(`
   SELECT c.character_id, ucp.learned, c.chinese_character, cm.frequency, cm.cumulative_frequency, cm.pinyin, cm.english
   FROM characters c
