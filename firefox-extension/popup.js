@@ -15,31 +15,49 @@ document.addEventListener('DOMContentLoaded', function() {
   loginBtn.addEventListener('click', function() {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
-    
+
     fetch('http://localhost:8081/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
     })
-    .then(response => response.json())
-    .then(data => {
-      if (data.token) {
-        browser.storage.local.set({ authToken: data.token, username: username });
-        showLoggedInUI();
-        status.textContent = 'Logged in successfully!';
-        browser.runtime.sendMessage({ action: 'fetchLearnedCharacters' });
-      } else {
-        status.textContent = 'Login failed. Please try again.';
-      }
-    })
-    .catch(error => {
-      status.textContent = 'An error occurred. Please try again.';
-      console.error('Login error:', error);
+      .then(response => response.json())
+      .then(data => {
+        if (data.token) {
+          browser.storage.local.set({ authToken: data.token, username: username, password: password });
+          showLoggedInUI();
+          status.textContent = 'Logged in successfully!';
+          browser.runtime.sendMessage({ action: 'fetchLearnedCharacters' });
+        } else {
+          status.textContent = 'Login failed. Please try again.';
+        }
+      })
+      .catch(error => {
+        status.textContent = 'An error occurred. Please try again.';
+        console.error('Login error:', error);
+      });
+  });
+
+  document.getElementById('orientation').addEventListener('change', (event) => {
+    const orientation = event.target.value;
+    browser.tabs.query({active: true, currentWindow: true}).then((tabs) => {
+      browser.tabs.sendMessage(tabs[0].id, {
+        action: 'setRubyOrientation',
+        orientation: orientation
+      });
     });
+    browser.storage.local.set({ rubyOrientation: orientation });
+  });
+
+  // Load saved orientation
+  browser.storage.local.get('rubyOrientation').then(result => {
+    if (result.rubyOrientation) {
+      document.getElementById('orientation').value = result.rubyOrientation;
+    }
   });
 
   logoutBtn.addEventListener('click', function() {
-    browser.storage.local.remove(['authToken', 'username']).then(() => {
+    browser.storage.local.remove(['authToken', 'username', 'password']).then(() => {
       showLoggedOutUI();
       status.textContent = 'Logged out successfully!';
     });

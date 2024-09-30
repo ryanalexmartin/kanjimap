@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <style>
-    body {
-      width: 300px;
-      padding: 10px;
-      font-family: Arial, sans-serif;
-    }
+  <head>
+    <style>
+body {
+  width: 300px;
+  padding: 10px;
+  font-family: Arial, sans-serif;
+}
     input, button {
       margin: 5px 0;
       width: 100%;
@@ -19,18 +19,23 @@
     #logoutBtn, #highlightBtn {
       display: none;
     }
-  </style>
-</head>
-<body>
-  <h2>KanjiMap Highlighter</h2>
-  <div id="loginForm">
-    <input type="text" id="username" placeholder="Username">
-    <input type="password" id="password" placeholder="Password">
-    <button id="loginBtn">Login</button>
-  </div>
-  <button id="logoutBtn">Logout</button>
-  <button id="highlightBtn">Highlight Now</button>
-  <div id="status"></div>
-  <script src="popup.js"></script>
-</body>
+    </style>
+  </head>
+  <body>
+    <h2>KanjiMap Highlighter</h2>
+    <div id="loginForm">
+      <input type="text" id="username" placeholder="Username">
+      <input type="password" id="password" placeholder="Password">
+      <button id="loginBtn">Login</button>
+    </div>
+    <button id="logoutBtn">Logout</button>
+    <select id="orientation">
+      <option value="vertical-right">Vertical Right</option>
+      <option value="horizontal-above">Horizontal Above</option>
+      <option value="horizontal-below">Horizontal Below</option>
+    </select>
+    <button id="highlightBtn">Highlight Now</button>
+    <div id="status"></div>
+    <script src="popup.js"></script>
+  </body>
 </html>
