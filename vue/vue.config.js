@@ -1,16 +1,26 @@
 const { defineConfig } = require('@vue/cli-service')
-const webpack = require('webpack');
-const dotenv = require('dotenv');
-const path = require('path');
-
-// Determine which .env file to use
-const envPath = path.resolve(__dirname, '../.env');
-
-// Load environment variables
-const env = dotenv.config({ path: envPath }).parsed || {};
+const path = require('path')
 
 module.exports = defineConfig({
   transpileDependencies: true,
-  publicPath: '/',
+  configureWebpack: {
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, 'src')
+      }
+    }
+  },
+  chainWebpack: config => {
+    config.module
+      .rule('ts')
+      .use('ts-loader')
+      .loader('ts-loader')
+      .tap(options => {
+        return {
+          ...options,
+          appendTsSuffixTo: [/\.vue$/]
+        }
+      })
+  }
 })
 
