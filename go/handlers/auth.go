@@ -16,18 +16,17 @@ import (
 )
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Received registration request")
 
 	username := r.FormValue("username")
 	password := r.FormValue("password")
 	email := r.FormValue("email")
 
-	fmt.Printf("Registration attempt for username: %s, email: %s\n", username, email)
-
 	if username == "" || email == "" || password == "" {
 		http.Error(w, "Username, email, and password are required", http.StatusBadRequest)
 		return
 	}
+
+	fmt.Printf("Registration attempt for username: %s, email: %s\n", username, email)
 
 	var userExists bool
 	err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username=?)", username).Scan(&userExists)

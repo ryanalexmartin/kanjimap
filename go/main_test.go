@@ -258,8 +258,6 @@ func TestAuthorizedAccess(t *testing.T) {
 		t.Fatalf("Failed to parse login response: %v", err)
 	}
 
-	fmt.Println("Token: ", loginResp.Token)
-
 	// Decode and verify the token
 	token, err := jwt.Parse(loginResp.Token, func(token *jwt.Token) (interface{}, error) {
 		return []byte(os.Getenv("SECRET_KEY")), nil
@@ -276,8 +274,6 @@ func TestAuthorizedAccess(t *testing.T) {
 	if _, ok := claims["user_id"]; !ok {
 		t.Fatalf("user_id claim not found in token")
 	}
-
-	fmt.Printf("Token claims: %+v\n", claims)
 
 	// Make the authorized request
 	req, err := http.NewRequest("GET", "/fetch-characters?username="+testUsername, nil)
