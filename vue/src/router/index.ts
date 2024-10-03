@@ -14,4 +14,10 @@ const router = createRouter({
   routes,
 })
 
+// Add navigation guard for debugging
+router.beforeEach((to, from, next) => {
+  console.log('Navigating to:', to.path)
+  next()
+})
+
 export default router

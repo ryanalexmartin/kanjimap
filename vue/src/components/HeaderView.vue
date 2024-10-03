@@ -1,41 +1,60 @@
 <template>
   <header>
+    <h1>KanjiMap</h1>
+    <h2>漢字地圖</h2>
+    <h2>by Ryan Alex Martin</h2>
+    <h2>馬丁瑞安創造</h2>
+    <a href="https://ryanalexmartin.com">ryanalexmartin.com</a>
+    <br />
+    <a href="https://github.com/ryanalexmartin/kanjimap">github.com/ryanalexmartin/kanjimap</a>
+    <br />
+    <br />
+    <div>
+      Click on a character to mark it as learned. Click again to mark it as
+      unlearned. I recommend something like
+      <a href="https://github.com/gkovacs/LiuChanFirefox/tree/firefox">LiuChan</a>
+      to help you learn the characters.
+      <br />
+      點擊一個字符標記為已學。再次點擊標記為未學。
+    </div>
+    <PassageLearner />
     <nav>
-      <router-link to="/">Home</router-link> |
-      <router-link to="/login" v-if="!isLoggedIn">Login</router-link>
-      <a href="#" @click.prevent="logout" v-else>Logout</a>
+      <a href="#" @click.prevent="logout" v-if="store.isLoggedIn">Logout</a>
+      <button @click="logout" v-if="store.isLoggedIn" class="logout-button">Logout</button>
     </nav>
+    <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
   </header>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useCharacterStore } from '@/store'
+import { useCharacterStore } from '../store'
+import PassageLearner from './PassageLearner.vue'
+import axios from 'axios'
 
-const store = useCharacterStore()
 const router = useRouter()
+const store = useCharacterStore()
+const errorMessage = ref('')
 
-const isLoggedIn = computed(() => store.isLoggedIn)
-
-function logout() {
-  store.isLoggedIn = false
-  store.username = ''
-  localStorage.removeItem('token')
-  localStorage.removeItem('username')
-  router.push('/login')
+async function logout() {
+  try {
+    // Assuming you have a logout API endpoint
+    await axios.post('/api/logout')
+    store.isLoggedIn = false
+    store.username = ''
+    router.push('/login')
+    errorMessage.value = ''
+  } catch (error) {
+    console.error('Logout failed:', error)
+    errorMessage.value = 'Logout failed. Please try again.'
+  }
 }
 </script>
 
 <style scoped>
-header {
-  padding: 1rem;
-  background-color: #f0f0f0;
-}
-
-nav a {
-  margin-right: 1rem;
-  text-decoration: none;
-  color: #333;
+.error-message {
+  color: red;
+  margin-top: 10px;
 }
 </style>

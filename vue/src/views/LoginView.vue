@@ -16,6 +16,7 @@ import { useRouter } from 'vue-router'
 import { useCharacterStore } from '@/store'
 import axios from 'axios'
 
+
 const router = useRouter()
 const store = useCharacterStore()
 
@@ -23,12 +24,16 @@ const username = ref('')
 const password = ref('')
 
 async function login() {
+  console.log('Logging in user:', username.value);
   try {
-    const response = await axios.post(`${process.env.VUE_APP_API_URL}/login`, {
+    const apiUrl = import.meta.env.VITE_API_BASE_URL
+    if (!apiUrl) {
+      throw new Error('VITE_API_BASE_URL is not defined')
+    }
+    const response = await axios.post(`${apiUrl}/login`, {
       username: username.value,
       password: password.value,
     })
-    
     const { token } = response.data
     localStorage.setItem('token', token)
     localStorage.setItem('username', username.value)

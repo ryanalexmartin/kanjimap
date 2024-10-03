@@ -18,6 +18,7 @@ export async function updateCharacterLearned(character: Character): Promise<Char
   const response = await axios.post(`${API_URL}/learn-character`, {
     username: localStorage.getItem('username'),
     chinese_character: character.char,
+    pinyin: character.pinyin,
     characterId: character.id,
     learned: !character.learned
   }, {

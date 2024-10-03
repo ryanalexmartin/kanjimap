@@ -6,9 +6,9 @@ import { fetchCharacters, updateCharacterLearned } from '@/api/characters'
 export const useCharacterStore = defineStore('characters', () => {
   const characters = ref<Character[]>([])
   const isLoggedIn = ref(false)
-  const username = ref('')
+  const username = ref('insomagent')
 
-  const learnedCount = computed(() => characters.value.filter(c => c.learned).length)
+  const learnedCount = computed(() => Array.isArray(characters.value) ? characters.value.filter(c => c.learned).length : 0)
   const totalCharacters = computed(() => characters.value.length)
 
   async function loadCharacters() {
