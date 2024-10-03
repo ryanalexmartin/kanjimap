@@ -2,7 +2,9 @@
 
 ## Zhuyin Highlighter Extension
 
-[] Handle both "localhost" and "kanjimap.cargocult.tech" links, set via "dev" or "prod"?
+[] Configure server URL dynamically:
+   - Handle both "localhost" and "kanjimap.cargocult.tech"
+   - Implement environment-based switching ("dev" or "prod")
 [] Word rules with context clues for better Zhuyin suggestions (if LiuChan can do it, so can I)
 [] publish extension to firefox store
 
@@ -20,6 +22,8 @@
 ### more clients for zhuyin:
 
     [] Google Chrome
+    [] Edge
+    [] Safari
     [] Obsidian
     ... Desktop?
     Mobile?
@@ -50,7 +54,5 @@
 # Bugs
 [] Make sure there aren't multiple login requests over and over.  Seems to be an issue right now.
 
-
 # Future features
 [] japanese language support
-

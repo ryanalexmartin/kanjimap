@@ -48,6 +48,7 @@ services:
       VUE_APP_API_URL: ${VUE_APP_API_URL}
       VUE_APP_API_PORT: ${VUE_APP_API_PORT}
       SECRET_KEY: ${SECRET_KEY}
+      DOCKER_CONTAINER: "true"
     volumes:
       - ./vue/:/vue/
       - ./go/:/go

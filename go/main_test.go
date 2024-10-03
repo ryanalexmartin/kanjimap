@@ -2,103 +2,101 @@
 package main
 
 import (
-    "encoding/json"
-    "net/http"
-    "net/http/httptest"
-    "net/url"
-    "strings"
-    "testing"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
 
-    "github.com/DATA-DOG/go-sqlmock"
-    _ "github.com/go-sql-driver/mysql"
-    "golang.org/x/crypto/bcrypt"
+	"github.com/DATA-DOG/go-sqlmock"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/ryanalexmartin/kanjimap/handlers"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func Test_registerHandler(t *testing.T) {
-    mockdb, mock, err := sqlmock.New()
-    if err != nil {
-        t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-    }
-    defer mockdb.Close()
-    db = mockdb
+	mockdb, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer mockdb.Close()
 
-    mock.ExpectQuery("^SELECT EXISTS\\(SELECT 1 FROM users WHERE username=\\?\\)$").
-        WithArgs("username").
-        WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(0))
+	mock.ExpectQuery("^SELECT EXISTS\\(SELECT 1 FROM users WHERE username=\\?\\)$").
+		WithArgs("username").
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(0))
 
-    mock.ExpectExec("^INSERT INTO users \\(username, password, email, token\\) VALUES \\(\\?, \\?, \\?, \\?\\)$").
-        WithArgs("username", sqlmock.AnyArg(), "test@example.com", "").
-        WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("^INSERT INTO users \\(username, password, email, token\\) VALUES \\(\\?, \\?, \\?, \\?\\)$").
+		WithArgs("username", sqlmock.AnyArg(), "test@example.com", "").
+		WillReturnResult(sqlmock.NewResult(1, 1))
 
-    ts := httptest.NewServer(http.HandlerFunc(registerHandler))
-    defer ts.Close()
+	ts := httptest.NewServer(http.HandlerFunc(handlers.RegisterHandler))
+	defer ts.Close()
 
-    res, err := http.PostForm(ts.URL, url.Values{
-        "username": {"username"},
-        "password": {"password"},
-        "email":    {"test@example.com"},
-    })
-    if err != nil {
-        t.Fatalf("an error '%s' was not expected when making a request to the server", err)
-    }
+	res, err := http.PostForm(ts.URL, url.Values{
+		"username": {"username"},
+		"password": {"password"},
+		"email":    {"test@example.com"},
+	})
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when making a request to the server", err)
+	}
 
-    if res.StatusCode != http.StatusOK {
-        t.Errorf("expected status code to be %d, but got %d", http.StatusOK, res.StatusCode)
-    }
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("expected status code to be %d, but got %d", http.StatusOK, res.StatusCode)
+	}
 
-    if err := mock.ExpectationsWereMet(); err != nil {
-        t.Errorf("there were unfulfilled expectations: %s", err)
-    }
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
 }
 
 func Test_loginHandler(t *testing.T) {
-    mockdb, mock, err := sqlmock.New()
-    if err != nil {
-        t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-    }
-    defer mockdb.Close()
+	mockdb, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer mockdb.Close()
 
-    passwordHash, err := bcrypt.GenerateFromPassword([]byte("testpassword"), bcrypt.DefaultCost)
-    if err != nil {
-        t.Fatalf("an error '%s' occurred while generating password hash", err)
-    }
-    rows := sqlmock.NewRows([]string{"id", "username", "password"}).
-        AddRow(1, "testuser", passwordHash)
-    mock.ExpectQuery("^SELECT id, username, password FROM users WHERE username=\\?$").
-        WithArgs("testuser").
-        WillReturnRows(rows)
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("testpassword"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("an error '%s' occurred while generating password hash", err)
+	}
+	rows := sqlmock.NewRows([]string{"id", "username", "password"}).
+		AddRow(1, "testuser", passwordHash)
+	mock.ExpectQuery("^SELECT id, username, password FROM users WHERE username=\\?$").
+		WithArgs("testuser").
+		WillReturnRows(rows)
 
-    mock.ExpectExec("^UPDATE users SET token=\\? WHERE username=\\?$").
-        WithArgs(sqlmock.AnyArg(), "testuser").
-        WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("^UPDATE users SET token=\\? WHERE username=\\?$").
+		WithArgs(sqlmock.AnyArg(), "testuser").
+		WillReturnResult(sqlmock.NewResult(1, 1))
 
-    db = mockdb
+	req, err := http.NewRequest("POST", "/login", strings.NewReader("username=testuser&password=testpassword"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-    req, err := http.NewRequest("POST", "/login", strings.NewReader("username=testuser&password=testpassword"))
-    if err != nil {
-        t.Fatal(err)
-    }
-    req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(handlers.LoginHandler)
 
-    rr := httptest.NewRecorder()
-    handler := http.HandlerFunc(loginHandler)
+	handler.ServeHTTP(rr, req)
 
-    handler.ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
 
-    if status := rr.Code; status != http.StatusOK {
-        t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-    }
+	var response map[string]string
+	json.Unmarshal(rr.Body.Bytes(), &response)
 
-    var response map[string]string
-    json.Unmarshal(rr.Body.Bytes(), &response)
+	if _, exists := response["token"]; !exists {
+		t.Errorf("handler returned unexpected body: token not found in response")
+	}
 
-    if _, exists := response["token"]; !exists {
-        t.Errorf("handler returned unexpected body: token not found in response")
-    }
-
-    if err := mock.ExpectationsWereMet(); err != nil {
-        t.Errorf("there were unfulfilled expectations: %s", err)
-    }
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
 }
 
 // func TestGetAllCharacterCards(t *testing.T) {
