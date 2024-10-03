@@ -106,13 +106,12 @@ export default {
     // learn all characters in the 'passage' text field
     // get 'passage' via v-model
     const learnFromPassage = async () => {
-      // parse for chinese characters
       const characters = state.passage.match(/[\u4e00-\u9fa5]/g);
       if (characters) {
         for (const char of characters) {
           const character = charactersData.find((c) => c.word === char);
           if (character) {
-            updateCharacterLearned(
+            await updateCharacterLearned(
               {
                 id: character.serial,
                 char: character.word,
@@ -120,11 +119,15 @@ export default {
               },
               true
             );
+            if (!state.isLoggedIn) {
+              break; // Stop processing if logged out due to unauthorized response
+            }
           }
         }
       }
-      // refresh the characters
-      fetchCharacters(state.username);
+      if (state.isLoggedIn) {
+        await fetchCharacters(state.username);
+      }
     };
 
     const fetchCharacters = async (username) => {
@@ -139,6 +142,10 @@ export default {
             },
           }
         );
+        if (response.status === 401) {
+          handleUnauthorizedResponse();
+          return;
+        }
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -148,7 +155,7 @@ export default {
             id: card.characterId,
             char: card.character,
             learned: card.learned,
-            frequency: card.frequency || 0, // Default to 0 if frequency is not provided
+            frequency: card.frequency || 0,
           }));
         } else {
           console.error("Received invalid data from server:", characterCards);
@@ -208,28 +215,37 @@ export default {
       state.isRegistering = false;
     };
 
-    const updateCharacterLearned = (character, learned) => {
+    const updateCharacterLearned = async (character, learned) => {
       character.learned = learned;
       localStorage.setItem(character.char, learned);
       learnedCount.value = characters.value.filter((c) => c.learned).length;
-      // Send a request to the server to update the learned status (JSON)
-      let response = fetch(
-        `${process.env.VUE_APP_API_URL}:${process.env.VUE_APP_API_PORT}/learn-character`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username: state.username,
-            chinese_character: character.char,
-            characterId: character.id,
-            learned: learned,
-          }),
+      try {
+        const response = await fetch(
+          `${process.env.VUE_APP_API_URL}:${process.env.VUE_APP_API_PORT}/learn-character`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+            body: JSON.stringify({
+              username: state.username,
+              chinese_character: character.char,
+              characterId: character.id,
+              learned: learned,
+            }),
+          }
+        );
+        if (response.status === 401) {
+          handleUnauthorizedResponse();
+          return;
         }
-      );
-
-      console.log(response);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+      } catch (error) {
+        console.error("Error updating character learned status:", error);
+      }
     };
 
     onMounted(() => {
@@ -244,6 +260,13 @@ export default {
         });
       learnedCount.value = characters.value.filter((c) => c.learned).length;
     });
+
+    const handleUnauthorizedResponse = () => {
+      state.isLoggedIn = false;
+      state.username = "";
+      localStorage.removeItem("token");
+      localStorage.removeItem("username");
+    };
 
     return {
       state,
@@ -260,6 +283,7 @@ export default {
       sortCharacters,
       showKnownCharactersList,
       toggleKnownCharactersList,
+      handleUnauthorizedResponse,
     };
   },
 };

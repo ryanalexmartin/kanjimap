@@ -24,6 +24,11 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("Registration attempt for username: %s, email: %s\n", username, email)
 
+	if username == "" || email == "" || password == "" {
+		http.Error(w, "Username, email, and password are required", http.StatusBadRequest)
+		return
+	}
+
 	var userExists bool
 	err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username=?)", username).Scan(&userExists)
 	if err != nil {
@@ -38,10 +43,10 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	result, err := db.DB.Exec("INSERT INTO users (username, password, email, token) VALUES (?, ?, ?, ?)", username, hashedPassword, email, "")
+	result, err := db.DB.Exec("INSERT INTO users (username, password, email) VALUES (?, ?, ?)", username, hashedPassword, email)
 	if err != nil {
+		log.Printf("Unable to register user: %v", err)
 		http.Error(w, "Unable to register user", http.StatusInternalServerError)
-		fmt.Println("Unable to register user", err)
 		return
 	}
 
@@ -63,8 +68,13 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	username := r.FormValue("username")
 	password := r.FormValue("password")
+
+	if username == "" || password == "" {
+		http.Error(w, "Username and password are required", http.StatusBadRequest)
+		return
+	}
+
 	var user models.User
-	var tokenString string
 
 	log.Printf("Login attempt for user: %s", username)
 
@@ -83,29 +93,37 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch the user's ID from the database
+	var userID int
+	err = db.DB.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
+	if err != nil {
+		http.Error(w, "Error fetching user data", http.StatusInternalServerError)
+		return
+	}
+
 	// Create a new token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username": username,
-		"exp":      time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
+		"user_id":  userID,
+		"exp":      time.Now().Add(time.Hour * 24).Unix(),
 	})
 
-	tokenString, err = token.SignedString([]byte(os.Getenv("SECRET_KEY")))
+	tokenString, err := token.SignedString([]byte(os.Getenv("SECRET_KEY")))
 	if err != nil {
-		log.Printf("Unable to sign token for user: %s, error: %v", username, err)
-		http.Error(w, "Unable to sign token", http.StatusInternalServerError)
+		log.Printf("Error generating token: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	// Store the new token
-	result, err := db.DB.Exec("INSERT INTO user_tokens (user_id, token) VALUES (?, ?)", user.ID, tokenString)
+	// Store the token in the user_tokens table
+	_, err = db.DB.Exec("INSERT INTO user_tokens (user_id, token, created_at) VALUES (?, ?, ?)", user.ID, tokenString, time.Now())
 	if err != nil {
-		log.Printf("Failed to store token for user: %s, error: %v", username, err)
-		http.Error(w, "Database error", http.StatusInternalServerError)
+		log.Printf("Error storing token: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	rowsAffected, _ := result.RowsAffected()
-	log.Printf("Token stored for user: %s, rows affected: %d", username, rowsAffected)
+	log.Printf("Token stored for user: %s", username)
 
 	// Return the token
 	type JsonResponse struct {

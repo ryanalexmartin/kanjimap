@@ -2,7 +2,10 @@ package utils
 
 import (
 	"fmt"
+	"log"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ryanalexmartin/kanjimap/db"
@@ -34,6 +37,11 @@ func ValidateToken(tokenString string) (*jwt.Token, error) {
 
 		if exp, ok := claims["exp"].(float64); ok {
 			if time.Now().Unix() > int64(exp) {
+				// Remove expired token from database
+				_, err := db.DB.Exec("DELETE FROM user_tokens WHERE token = ?", tokenString)
+				if err != nil {
+					log.Printf("Error removing expired token: %v", err)
+				}
 				return nil, fmt.Errorf("token expired")
 			}
 		}
@@ -44,9 +52,18 @@ func ValidateToken(tokenString string) (*jwt.Token, error) {
 	return nil, fmt.Errorf("invalid token")
 }
 
+func ExtractToken(r *http.Request) string {
+	tokenString := r.Header.Get("Authorization")
+	if tokenString == "" {
+		return ""
+	}
+	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+	return tokenString
+}
+
 func CleanupExpiredTokens() {
-	_, err := db.DB.Exec("DELETE FROM user_tokens WHERE created_at < ?", time.Now().Add(-24*time.Hour))
+	_, err := db.DB.Exec("DELETE FROM user_tokens WHERE created_at < ?", time.Now().Add(-7*24*time.Hour))
 	if err != nil {
-		fmt.Printf("Error cleaning up expired tokens: %v", err)
+		log.Printf("Error cleaning up expired tokens: %v", err)
 	}
 }
