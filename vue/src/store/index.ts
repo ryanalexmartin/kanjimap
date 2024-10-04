@@ -6,11 +6,23 @@ import characterData from '@/data/variant-WordData.json'
 
 export const useCharacterStore = defineStore('characters', () => {
   const characters = ref<Character[]>([])
-  const isLoggedIn = ref(false)
-  const username = ref('insomagent')
+  const _isLoggedIn = ref(localStorage.getItem('isLoggedIn') === 'true')
+  const username = ref(localStorage.getItem('username') || '')
 
-  const learnedCount = computed(() => Array.isArray(characters.value) ? characters.value.filter(c => c.learned).length : 0)
+  const isLoggedIn = computed(() => _isLoggedIn.value)
+
+  const learnedCount = computed(() => characters.value.filter(c => c.learned).length)
   const totalCharacters = computed(() => characters.value.length)
+
+  function setIsLoggedIn(value: boolean) {
+    _isLoggedIn.value = value
+    localStorage.setItem('isLoggedIn', value.toString())
+  }
+
+  function setUsername(value: string) {
+    username.value = value
+    localStorage.setItem('username', value)
+  }
 
   async function loadCharacters() {
     try {
@@ -64,6 +76,8 @@ export const useCharacterStore = defineStore('characters', () => {
     username,
     learnedCount,
     totalCharacters,
+    setIsLoggedIn,
+    setUsername,
     loadCharacters,
     toggleCharacterLearned,
   }

@@ -16,7 +16,6 @@ import { useRouter } from 'vue-router'
 import { useCharacterStore } from '@/store'
 import axios from 'axios'
 
-
 const router = useRouter()
 const store = useCharacterStore()
 
@@ -36,10 +35,9 @@ async function login() {
     })
     const { token } = response.data
     localStorage.setItem('token', token)
-    localStorage.setItem('username', username.value)
     
-    store.isLoggedIn = true
-    store.username = username.value
+    store.setIsLoggedIn(true)
+    store.setUsername(username.value)
     await store.loadCharacters()
     
     router.push('/')

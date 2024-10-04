@@ -20,4 +20,14 @@ router.beforeEach((to, from, next) => {
   next()
 })
 
+// Add navigation guard for handling redirection
+router.beforeEach((to, from, next) => {
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true' && !!localStorage.getItem('token')
+  if (to.path === '/' && !isLoggedIn) {
+    next('/login')
+  } else {
+    next()
+  }
+})
+
 export default router

@@ -1,5 +1,5 @@
 export interface Character {
-  id: number;
+  id: string;
   char: string;
   pinyin: string;
   learned: boolean

@@ -19,10 +19,10 @@
     </div>
     <PassageLearner />
     <nav>
-      <a href="#" @click.prevent="logout" v-if="store.isLoggedIn">Logout</a>
-      <button @click="logout" v-if="store.isLoggedIn" class="logout-button">Logout</button>
+      <button @click="logout" v-if="isLoggedIn" class="logout-button">Logout</button>
     </nav>
     <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+    {{ console.log('store.isLoggedIn:', store.isLoggedIn) }}
   </header>
 </template>
 
@@ -31,30 +31,56 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCharacterStore } from '../store'
 import PassageLearner from './PassageLearner.vue'
-import axios from 'axios'
+import { computed } from 'vue'
+import { watch } from 'vue'
+import { onMounted } from 'vue'
 
 const router = useRouter()
 const store = useCharacterStore()
 const errorMessage = ref('')
 
+const isLoggedIn = computed(() => store.isLoggedIn)
+
 async function logout() {
   try {
-    // Assuming you have a logout API endpoint
-    await axios.post('/api/logout')
-    store.isLoggedIn = false
-    store.username = ''
+    // await axios.post('/logout') // TODO: implement logout on backend
+    store.setIsLoggedIn(false)
+    store.setUsername('')
     router.push('/login')
     errorMessage.value = ''
+    localStorage.removeItem('token')
   } catch (error) {
     console.error('Logout failed:', error)
     errorMessage.value = 'Logout failed. Please try again.'
   }
 }
+
+watch(() => store.isLoggedIn, (newValue) => {
+  console.log('isLoggedIn changed:', newValue)
+})
+
+onMounted(() => {
+  console.log('HeaderView mounted, store.isLoggedIn:', store.isLoggedIn)
+})
 </script>
 
 <style scoped>
 .error-message {
   color: red;
   margin-top: 10px;
+}
+
+.logout-button {
+  padding: 8px 16px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.logout-button:hover {
+  background-color: #d32f2f;
 }
 </style>
