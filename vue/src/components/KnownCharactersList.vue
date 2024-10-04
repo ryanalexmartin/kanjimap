@@ -17,6 +17,10 @@ export default {
   },
   computed: {
     knownCharacters() {
+      if (!Array.isArray(this.characters)) {
+        console.error('characters prop is not an array:', this.characters);
+        return [];
+      }
       return this.characters.filter(char => char.learned).sort((a, b) => b.frequency - a.frequency);
     }
   }
