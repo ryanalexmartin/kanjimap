@@ -37,14 +37,21 @@
     // This function will be called when the sorting option changes
     // The actual sorting is done in the computed property 'sortedCharacters'
   }
-  
   const sortedCharacters = computed(() => {
     console.log('Characters in sortedCharacters:', props.characters)
     if (sortBy.value === 'frequency') {
-      return [...props.characters].sort((a, b) => (b.frequency || 0) - (a.frequency || 0))
+      return [...props.characters].sort((a, b) => (a.frequency || 0) - (b.frequency || 0))
     } else {
       // Default sorting (by id)
-      return [...props.characters].sort((a, b) => b.id - a.id)
+      return [...props.characters].sort((a, b) => {
+        if (typeof a.id === 'string' && typeof b.id === 'string') {
+          return a.id.localeCompare(b.id)
+        } else if (typeof a.id === 'number' && typeof b.id === 'number') {
+          return a.id - b.id
+        }
+        // If types are mixed or undefined, maintain original order
+        return 0
+      })
     }
   })
   

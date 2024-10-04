@@ -1,15 +1,17 @@
 {
-  "name": "KanjiMap",
+  "name": "kanji-map",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "vitest",
     "serve": "vite preview",
     "lint": "eslint --ext .js,.vue --ignore-path .gitignore --fix src"
   },
   "dependencies": {
+    "@pinia/testing": "^0.1.6",
     "axios": "^1.7.7",
     "core-js": "^3.30.1",
     "pinia": "^2.1.3",

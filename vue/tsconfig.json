@@ -13,8 +13,8 @@
     "useDefineForClassFields": true,
     "baseUrl": ".",
     "types": [
-      "webpack-env",
       "vite/client",
+      "vitest/globals",
       "node"
     ],
     "paths": {
@@ -33,7 +33,8 @@
     "src/**/*.ts",
     "src/**/*.d.ts",
     "src/**/*.tsx",
-    "src/**/*.vue"
+    "src/**/*.vue",
+    "src/**/*.spec.ts"
   ],
   "exclude": [
     "node_modules"
